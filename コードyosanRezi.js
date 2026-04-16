@@ -187,7 +187,7 @@ function newGenRezi(json){
 function tyumonSpace(kFileId, uke, genmei, kinds, ts, fUrl) {
   // ts や fUrl が渡されない場合、これらは undefined になります
   const webhookUrl = chatUrl("注文書丸山");
-
+  if(!kFileId && !fUrl) return;
   try {
     // 1. 金額の整形（カンマ区切り）
     const cleanUke = String(uke).replace(/[^\d]/g, ""); 

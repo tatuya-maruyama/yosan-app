@@ -841,7 +841,7 @@ function genInfoHen(json) {
         const cleanUke = String(seikyu).replace(/[\n,]/g, "");
         const ts = "請求";
         const kFileId = "";
-        tyumonSpace(kFileId, cleanUke, genmei, kousyu, ts, cb1);//注文書をスペースにあげる
+        tyumonSpace(kFileId, cleanUke, genmei, kousyu, ts, cb2);//注文書をスペースにあげる
 
       }else{
         //失敗チャット送信
