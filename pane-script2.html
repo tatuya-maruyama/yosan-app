@@ -1,0 +1,183 @@
+<script>
+  //◆◆小規模用◆◆
+  //小規模発注管理ボタンクリック
+  function syokibo(){
+    // 読み込む
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    google.script.run.withSuccessHandler(function(dt){
+      //alert(dt);
+      const gyoSctTE = document.getElementById('gyoSctT');// テーブル
+      const tbody = document.createElement('tbody');
+      for(let i = 0; i <= 10; i++) {
+        if(i == 10) {
+          gyoSctTE.appendChild(tbody);
+          document.getElementById('controlPane').hidden = true;
+          document.getElementById('gyoSctPane').hidden = false;
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoA').hidden = true;
+        } else if(i == 0) {
+          let tr = document.createElement('tr');
+          let th1 = document.createElement('th');
+          let th2 = document.createElement('th');
+          let th3 = document.createElement('th');
+          let th4 = document.createElement('th');
+          let th5 = document.createElement('th');
+          let th6 = document.createElement('th');
+          let th7 = document.createElement('th');
+          let th8 = document.createElement('th');
+          th1.textContent = "ROW";
+          th2.textContent = "会社名";
+          th3.textContent = "発注金額";
+          th4.textContent = "支払計";
+          th5.textContent = "残金";
+          th6.textContent = "発注状況";
+          th7.textContent = "";
+          th8.textContent = "発注書確認";
+          tr.appendChild(th1);
+          tr.appendChild(th2);
+          tr.appendChild(th3);
+          tr.appendChild(th4);
+          tr.appendChild(th5);
+          tr.appendChild(th6);
+          tr.appendChild(th7);
+          tr.appendChild(th8);
+          tbody.appendChild(tr);
+        } else {
+          const tr = document.createElement('tr');
+          for(let s = 0; s <=7; s++) {  // s = 0 から 6 まで
+            row = i - 1;
+            const td = document.createElement('td');
+            
+            // sが3, 4, 5の場合（数値フォーマット）
+            if(s == 2 || s == 3 || s == 4) {
+              const v = s + 1;
+              const val = Number(dt[row][v]);
+              const num = val.toLocaleString();
+              td.textContent = num;
+            } 
+            // s == 6 の場合（ボタン設置）
+            else if(s == 6) {
+              let bid = "bid-" + i;
+              if(dt[row][1] == "") {
+                td.insertAdjacentHTML('afterbegin', '<input id="fsS-' + i + '" type="button" value="注文書発行" onclick="hatyuS(id)"/>');
+              } else {
+                td.insertAdjacentHTML('afterbegin', '<input id="reS-' + i + '" type="button" value="再発行" onclick="hatyuS(id)"/>');
+              }
+            }else if(s == 7){
+              td.insertAdjacentHTML('afterbegin','<input id="haS-' + i + '" type="button" value="確認" onclick="hatyuKaku(id)"/>');
+            } 
+            // その他の場合（データの表示）
+            else if(s == 5){
+              td.textContent = dt[row][2];
+            }else{
+              td.textContent = dt[row][s];
+            }
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        }
+      }
+    }).getGyoListS(fId);
+  }
+  //◆◆注文書発行＆再発行のクリック
+  function hatyuS(id){
+    const passE = document.getElementById('pass');
+    const pass = passE.value;
+    //alert(pass);
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    document.getElementById(id).disabled = true;
+    google.script.run.withSuccessHandler(function(dt){
+      //alert(dt);
+      document.getElementById('infoA').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+      if(dt == "OK"){
+        const kosyuIndex = Number(id.slice(4));
+        //alert(kosyuIndex);
+        document.getElementById('kosyuSet').value = kosyuIndex;
+        const jd = id.slice(0,2);//fsは注文書発行、reは再発行
+        //alert(jd);
+        document.getElementById('fsRe').value = jd;//注文書発行または再発行の記録
+        const genTan = document.getElementById('genTan').value;
+        if(genTan == ""){
+          alert('現場担当者が登録されてないようです\n先に登録が必要です')
+        }else if(jd == "re"){//再発行の場合
+          document.getElementById(id).disabled = false;
+          syokiboHatyu()//業者は変更しないで処理開始
+        }else{
+          //発注先の選択と発注金額の入力画面
+          document.getElementById(id).disabled = false;
+          gyoHen(id)
+        }
+      }else{
+        alert("この処理は使用できません");
+      }
+    }).kengen(pass);  
+  }
+  //業者セレクトgyohHen()⇒listGsctOK()のifで分岐
+  function syokiboHatyu(){
+    const fsReE = document.getElementById('fsRe');
+    const fsRe = fsReE.value;
+    const kin = window.prompt("発注金額（税抜き）を入力ください");
+    const dayF = () => {
+      const d = window.confirm("発行日は本日でよろしいですか\nOK、キャンセルはクリックでお願いします");
+      if(d == true){
+        return "本日";
+      }else{
+        const dA = window.prompt('発行日を入力ください');
+        return dA;
+      }
+    } 
+    const day = dayF();
+    //alert(day);
+    const kosyu = window.prompt("工種を入力ください\n例：ｼｰﾘﾝｸﾞ工事");
+    const syatyo = window.confirm("社長はCCに含めますか\nOK、キャンセルはクリックでお願いします");
+    //alert(syatyo);
+    const kosyuSetE = document.getElementById('kosyuSet');
+    const tIndex = Number(kosyuSetE.value);//テーブルもスプレットシートRowも同じでいい
+    //alert(tIndex);
+    const index = document.getElementById('gyoSet').value;
+    const listGyoTE = document.getElementById('listGyoT');//業者選択用
+    const gyoSctTE = document.getElementById('gyoSctT');//工種別請負業者
+    const gyoRowF = () => {
+      if(fsRe == "fs"){
+        return listGyoTE.rows[index].cells[0].textContent;
+      }else if(fsRe == "re"){
+        return "同じ"
+      }
+    }
+    const gyoRow = gyoRowF();
+    const gyoF = () => {
+      if(fsRe == "fs"){
+        return listGyoTE.rows[index].cells[1].textContent;
+      }else if(fsRe == "re"){
+        return gyoSctTE.rows[tIndex].cells[1].textContent;
+      }
+    }
+    const gyo = gyoF();
+    const genmei = document.getElementById('genmei').value;
+    const kinA = Number(kin.toLocaleString());
+
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    
+    //発注して良いかの確認
+    const msg = window.confirm('発注しますよろしいですか\n発注日：' + day +'\n現場名：' + genmei + '\n業者名：' + gyo + "\n発注金額：" + kinA + "\nCCに社長：" + (syatyo ? 'はい' : 'いいえ'));
+    if(msg == true){
+      //テーブルに記録、発行処理、チャットに送信
+      gyoSctTE.rows[tIndex].cells[1].textContent = gyo;
+      gyoSctTE.rows[tIndex].cells[2].textContent = kinA;
+      gyoSctTE.rows[tIndex].cells[5].textContent = day;
+      alert('準備が出来次第、発注書をチャット送信します。少々お待ちください');
+      google.script.run
+      .withFailureHandler(function(er){
+        alert('◆ERRORが起きました\n' + er.message);
+      }).syokiboTyumonGo(fId,gyo,gyoRow,kin,tIndex,day,fsRe,kosyu,syatyo);//再発行の場合はgyoRowがない
+      document.querySelector('.overlay5').style.display = "none";
+      document.querySelector('.modal2').style.display = "none";
+    }
+  }
+</script>

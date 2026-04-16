@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('style-css').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('pane-script').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('pane-script2').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('pane-script-genka').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('fileUp').getContent(); ?>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  </head>
+  <body>
+    <!--データゾーン-->
+    <input id="fId" hidden="true"/>
+    <input id="ds" hidden='true'/>
+    <input id="pass" hidden="true"/>
+    <input id="syaId" hidden="true"/>
+    <input id="access" hidden="true"/>
+    <input id="fsRe" hidden='true'/><!--注文書発行または再発行七日の記録-->
+    <input id="kengen" hidden="true"/>
+    <!--データゾーン-->
+    <div class="wrapper">
+      <div id="controlPane" style="text-align:center">
+        <h2>メインパネル</h2>
+        <label for="genmei">現場名</label><input id='genmei' class="input" readonly="true"/><br>
+        <label for="genTan">担当者</label><input id='genTan' class="input" readonly="true"/><br>
+        <div id="btPane1">
+          <input id="gyoSctBt" class="button" type="button" value="工種業者セレクト" onclick="gyoSct()"/>
+          <input id="readBt" class="button" type="button" value="Excel⇒内訳鏡" onclick="csv(id)"/>
+          <input id="genkaSetBt" class="button" type="button" value="原価設定" onclick="genka()"/><br> 
+        </div>
+        <div id="btPane2" hidden="true">
+          <input id="syokiboBt" class="button" type="button" value="小規模発注管理" onclick="syokibo()"/>
+        </div>
+        <input id="bkYosanBt" class="button2" type="button" value="戻る" onclick="bkYosan()" hidden="true"/>
+      </div>
+      <div id="gyoSctPane" hidden="true">
+        <h3>工種別請負業者セレクト</h3>
+        <input id="kosyuSet" hidden="true"/><!--データ-->
+        <div style="text-align:center">
+          <input id="genmeiA" class="input" readonly="true"/>
+          <h4 id="tan" style="text-align:center" ></h4>
+        </div>
+        
+        <table id="gyoSctT" class="table"></table><br>
+        <table id="koteiT" class="table">
+          <tr><th>工程表ファイル</th>
+          <td><input id="file1" readonly="true"></td>
+          <td><input id="flOP1" type="button" value="OPEN" onclick="flOpen(id)"/></td>
+          <td><input id="flUp1" type="button" value="ｱｯﾌﾟﾛｰﾄﾞ" onclick="upLoad(id)"/></td></tr>
+          <tr><th>その他（仕様書など）</th>
+          <td><input id="file2" readonly="true"></td>
+          <td><input id="flOP2" type="button" value="OPEN" onclick="flOpen(id)"/></td>
+          <td><input id="flUp2" type="button" value="ｱｯﾌﾟﾛｰﾄﾞ" onclick="upLoad(id)"/></td></tr>
+          <tr><th>担当者以外送信</th>
+          <td><input id="ccmail" readonly="true"/></td>
+          <td><input id="plusMailBt" type="button" value="追加" onclick="plusMail()"/></td>
+          <td><input id="ccResetBt" type="button" value="ﾘｾｯﾄ" onclick="ccReset()"/></td></tr>
+        </table>
+        <!--単独発注用テーブル-->
+        <input id="tanHatuBt" type="button" class="button" value="単独発注" onclick="tanHatu()"/>
+        <P>【注意】こちらで発行した注文書は担当者出来高請求には反映されません</P>
+        <table id="tandokuT" class="table"></table>
+
+        <input id="backBt" type="button" class="button2" value="戻る" onclick="back()"/>
+      </div>
+      <!--業者別の案内＆発注パネル-->
+      <div id="anTyuPane" hidden="true">
+
+        <input id="anBt2" class="inpt2" value="案内" readonly="true" style="background-Color:#ffd700; color:black" hidden="true"/>
+        <input id="tyuBt2" class="inpt2" value="発注" readonly="true" style="background-Color:#dc143c; color:#fff" hidden="true"/>
+        <h3 id="anTyuInfo"></h3>
+        <div style="text-align:center">
+          <label for="genmeiB">現場：</label><input id="genmeiB" class="input" readonly="true"/><br>
+          <label for="atKosyu">工種：</label><input id="atKosyu" class="input" readonly="true"/><br>
+          <label for="atGyo">業者：</label><input id="atGyo" class="input" readonly="true"/>
+        </div>
+        <table id="anTyuT" class="table"></table>
+        <input type="button" class="button2" value="戻る" onclick="listGBK()"/>
+      </div>
+    </div>
+    <div class="overlay4">
+      <div class="modal4">
+         <div id="infoA" hidden="true">
+          <h3 style="text-align: center; margin-top:60px">◆◇読み込み中◇◆</h3><br><br>
+        </div>
+      </div>
+    </div>
+    <div class="overlay5">
+      <div class="modal3">
+        <div id="listGyoPane" hidden="true">
+          <input id="gyoSet" hidden="true"/>
+          <h3 id="gSctInfo"></h3>
+          <!--データ記録(業者セレクトが通常の発注（案内）なのか単独発注なのか-->
+          <input id="tanHatuRec" hidden="true"/>
+          <label for="sctGyo">頭文字</label><select id="sctGyo" class="select" onchange="changeGList()"></select>
+          <table id="listGyoT" class="table"></table>
+          <input id="listSctGBt" type="button" class="button" value="選択OK" onclick="listGsctOK()" hidden="true">
+          <input id="listGBKBt" type="button" class="button2" value="戻る" onclick="modalBK()"/>
+        </div>
+        <!--内訳書確認パネル-->
+        <div id="utiwake" hidden="true">
+          <!--データゾーン kousyuSet（kousyuIndex)はgyoSctPaneにある-->
+          <input id="hako" hidden="true"/>
+          <input id="anTyu" hidden="true"/>
+          <input id="re" hidden="true"/><!--再発行かどうか確認用-->
+          <!--データゾーン-->
+          <h3 id="utiwakeInfo"></h3>
+          <input id="anBt" class="inpt2" value="案内" readonly="true" style="background-Color:#ffd700; color:black" hidden="true"/>
+          <input id="tyuBt" class="inpt2" value="発注" readonly="true" style="background-Color:#dc143c; color:#fff" hidden="true"/>
+          <input id="yakuBt" class="inpt2" value="契約" readonly="true" style="color:black" hidden="true"/>
+          <input id="henBt" class="inpt2" value="変更" readonly="true" style="color:black" hidden="true"/>
+          <input id="tuiBt" class="inpt2" value="追加" readonly="true" style="color:black" hidden="true"/>
+          
+          <input id="utiOKBt" type="button" class="button" value="OK" onclick="hakoOK()"/>
+          <input id="anKakuBKBt" type="button" class="button2" value="戻る" onclick="modalBK()"/>
+          <table class="table"><tr><th>ﾒｯｾｰｼﾞ</th><td><input id="message" class="input" placeholder="ﾒｯｾｰｼﾞ(ﾒｰﾙに記載されます)" /></td></tr></table><br>
+          <table class="table">
+            <tr><th>現場</th><td><input id="genmeiC" class="input" readonly="true"/></td></tr>
+            <tr><th>工種</th><td><input id="utiKosyu" class="input" readonly="true"/></td></tr>
+            <tr><th>会社</th><td><input id="utiGyo" class="input" readonly="true"/></td></tr>
+            <tr><th>合計（百単位切）</th><td><input id="gokei" class="input" readonly="true"/></td></tr>
+          </table><br>
+  
+          <table id="utiwakeT" class="table"></table>
+        </div>
+        <!--ファイルアップロードパネル-->
+        <div id="upLoadPane" hidden="true">
+          <!--データ-->
+          <input id="upBt" hidden="true"/>
+          <!--データ-->
+          <form action="" method="post" enctype="multipart/form-data">
+          <input id="upfileNo" name="upGen" class="input" hidden="true"/>
+            <div id="container">
+              <div id="chart" style="cursor: auto;">
+                <h3>ファイルアップロード</h3>
+                <h3 id="utiUpInfo"></h3>
+                <input id="inptFile" type="file" value="ファイルを選択" name="geodataFile" onchange="selectFiles(files)"/>
+              </div>
+              <div>
+                <input id="UpPaneModoruBt" type="button" class="button2" value="戻る" onclick="UpPaneBK()"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div id="upInfoPane" hidden="true">
+          <h3 id="upInfo"></h3>
+          <div class="arrow-loader">
+            <span>⇒⇒</span><span>⇒⇒</span><span>⇒⇒</span>
+          </div>
+          <div id="utiColumnKaku" hidden="true">
+            <input id="utiId" hidden="true"/>
+            <input type="button" class="button" value="実行" onclick="utiFileOK()"/>
+            <input type="button" class="button2" value="ｷｬﾝｾﾙ" onclick="utiFileBK()"/>
+            <h3>行を並びが違う場合は指定してください</h3>
+            <table id="columnT" class="table">
+              <tr><th>番号</th><th>項目</th><th>仕様</th><th>呼称</th><th>数量</th><th>単価</th><th>金額</th><th>備考</th><th>原価</th></tr>
+              <tr><td><select id="uti1" class="selectS"><option value="A" selected>A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option></select></td>
+              <td><select id="uti2" class="selectS"><option value="A">A</option><option value="B" selected>B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option></select></td>
+              <td><select id="uti3" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C" selected>C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option></select></td>
+              <td><select id="uti4" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D" selected>D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option></select></td>
+              <td><select id="uti5" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E" selected>E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option></select></td>
+              <td><select id="uti6" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F" selected>F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option></select></td>
+              <td><select id="uti7" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G" selected>G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option></select></td>
+              <td><select id="uti8" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H" selected>H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option></select></td>
+              <td><select id="uti10" class="selectS"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J" selected>J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option></select></td></tr>
+            </table>
+            <canvas id="log-preview-canvas" width="800" height="1130" style="border: 1px solid #ccc;"></canvas>
+          </div>
+          <div id="utiUpInfo2" hidden="true">
+            <h3>◇内訳書スプレットシーを作成中◇</h3>
+            <h3>このままお待ちください</h3>
+            <h3>少々時間がかかります</h3>
+          </div>
+        </div>
+        <div id="genkaPane" hidden="true">
+          <h3>🔸原価設定パネル🔸</h3>
+          <p>※単価に対し粗利率を考慮した原価を設定します</p>
+          <label for="arari">設定粗利（％）</label>
+          <select id="arari" class="select">
+            <option value="5">5%</option>
+            <option value="10">10%</option>
+            <option value="12">12%</option>
+            <option value="15">15%</option>
+            <option value="16">16%</option>
+            <option value="17">17%</option>
+            <option value="18">18%</option>
+            <option value="19">19%</option>
+            <option value="20" selected>20%</option>
+            <option value="21">21%</option>
+            <option value="22">22%</option>
+            <option value="23">23%</option>
+            <option value="24">24%</option>
+            <option value="25">25%</option>
+            <option value="26">26%</option>
+            <option value="27">27%</option>
+            <option value="28">28%</option>
+            <option value="29">29%</option>
+            <option value="30">30%</option>
+            <option value="31">31%</option>
+            <option value="32">32%</option>
+            <option value="33">33%</option>
+            <option value="34">34%</option>
+            <option value="35">35%</option>
+          </select><br>
+          <input type="button" class="button" value="設定開始" onclick="setting()"/>
+          <input type="button" class="button2" value="ｷｬﾝｾﾙ" onclick="genkaBK()"/>
+        </div>
+        
+        <div id="mailList" hidden="true">
+          <h3>◆追加する社員を選択ください</h3>
+          <label for="syain">社員：</label><select id="syain" class="select" onchange="syaSct()"></select>
+        </div>
+        <div id="hakoModal" hidden="true">
+          <h3>◆注文書PDFはチャット送信されます◆</h3>
+          <h4>↓メールアドレスコピペ用↓</h4>
+          <h4 id="gyomail"></h4>
+          <h4 id="tanMail"></h4>
+          <h4 id="ccMail"></h4>
+          <input type="button" class="button2" value="戻る" onclick="modalBK()"/>
+        </div>
+        <!--単独発注書作成ﾊﾟﾈﾙ-->
+        <div id="tanHatuPane" hidden="true">
+          <!--データ--><input id="gyoRow" hidden="true"/>
+          <h3>業者注文請書発行（単独）</h3>
+          <P>【注意】こちらで発行した注文書は担当者出来高請求には反映されません</P>
+        <table class="table">
+          <tr><th>物件名</th><td id="tanHGen"></td><td></td></tr>
+          <tr><th>発注種類</th><td><select id="tanHKinds" class="select">
+            <option value="一式">一式契約</option>
+            <option value="人工">人工契約</option>
+            </select></td><td></td></tr>
+          <tr><th>工種</th><td><input id="tanHKosyu" class="input"/></td><td></td></tr>
+          <tr><th>会社名</th><td id="tanHGyo"></td><td><input id="tanHenInpt" type="button" value="選択" onclick="gyoHen(this.id)"/></td></tr>
+          <tr><th>発注金額</th><td><input id="tanHKin" type="tel" class="input" onchange="tanHKinHen()"/></td><td>※税抜き</td></tr>
+          <tr><th>メッセージ</th><td><input id="tanHMsg" class="input"/></td><td></td></tr>
+        </table>
+        <input type="button" value="発注書発行" class="button" onclick="tanHatuRezi()"/>
+        <input type="button" value="戻る" class="button2" onclick="tanHatu('bk')"/>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    //◆◆業者リストの業者クリック
+    const listGyoTE = document.getElementById('listGyoT');
+    let gyoSetE = document.getElementById('gyoSet');
+    //let tableA = document.querySelectorAll('table');
+    listGyoTE.addEventListener("click", function(e){
+      //alert(e.target.tagName.toLowerCase());
+      if(e.target.tagName.toLowerCase() === "td"){
+        //alert(gTable.rows.length);
+        for(let i = 0; i < listGyoTE.rows.length; i++){
+          let rows = listGyoTE.rows.item(i);
+          rows.style.backgroundColor = "#EEEEEE";
+          rows.style.color = "black";
+          for(let j = 0; j < listGyoTE.rows[i].cells.length; j++){
+            listGyoTE.rows[i].cells[j].id = i;
+          }
+        };
+        e.target.parentNode.style.backgroundColor = "gray";
+        e.target.parentNode.style.color = "#EEEEEE";
+        rowcel = e.target.id;
+        gyoSetE.value = rowcel;
+        //alert(rowcel);
+      }
+    },false);
+  </script>
+</html>
+

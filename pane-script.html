@@ -1,0 +1,1312 @@
+<script>
+  //◆◆大規模用◆◆予算書からアクセス
+  window.onload = function(){
+    google.script.url.getLocation(function(location){
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+
+      const param1 = location.parameter.param1;
+      document.getElementById('fId').value = param1;
+      document.getElementById('controlPane').hidden = false;
+      const param2 = location.parameter.param2;//Sまたはなしparam2がある場合は小規模
+      //alert(param1,param2);
+      document.getElementById('ds').value = param2;
+      if(param2 == "S"){
+        //小規模を開く注文書発行管理
+        document.getElementById('btPane1').hidden = true;//大規模のパネル
+        document.getElementById('btPane2').hidden = false;//小規模パネル
+        document.getElementById('koteiT').hidden = true;//工程表パネル非表示
+        //document.getElementById('backBt').hidden = true;//戻るボタンを非表示
+      }
+      google.script.run.withSuccessHandler(function(dt){
+        const rn = dt.split(',');
+        const gen = rn[0];
+        const tan = rn[1];
+        document.getElementById('genmei').value = gen;
+        document.getElementById('genmeiA').value = gen;
+        document.getElementById('genmeiB').value = gen;
+        document.getElementById('genmeiC').value = gen;
+        document.getElementById('genTan').value = tan;
+        document.querySelector('.overlay4').style.display = "none";
+        document.getElementById('infoA').hidden = true;
+      }).genInfo(param1,param2);
+      const param3 = location.parameter.param3;
+      document.getElementById('pass').value = param3;
+     if ('param4' in location.parameter) {
+        const param4 = location.parameter.param4
+        document.getElementById('syaId').value = param4;
+        //戻るを表示する
+        document.getElementById('bkYosanBt').hidden = false;
+        //alert(param3 + "," + param4);
+        kengenCheck(param3,param4);
+      }else{
+        kengenCheck(param3);
+      }
+      if ('param5' in location.parameter) {
+        document.getElementById('access').value = location.parameter.param5;
+      }
+    })
+  }
+  //😃権限確認
+  function kengenCheck(param3, param4) {
+    const kengenNG = () => {
+      document.getElementById('kengen').value = "NG";
+      document.getElementById('readBt').hidden = true;//内訳書反映ボタン
+      document.getElementById('resetBt').hidden = true;//内訳内容リセット
+      document.getElementById('utiOKBt').hidden = true;//案内、注文書発行ボタン
+      document.getElementById('flUp1').hidden = true;//添付ファイル登録ボタン
+      document.getElementById('flUp2').hidden = true;//添付ファイル登録ボタン２
+      document.getElementById('plusMailBt').hidden = true;//ccメール登録ボタン
+      document.getElementById('ccResetBt').hidden = true;//ccメールリセットボタン
+      document.getElementById('genkaSetBt').hidden = true;//原価設定ボタン
+      document.getElementById('tanHatuBt').hidden = true;//発注書発行（単独）
+    };
+    if (!param4) {
+      //alert("権限チェックNG（param4が未定義）");
+      kengenNG();
+      return;
+    }
+
+    google.script.run.withSuccessHandler(function (judge) {
+      //alert(judge); // "OK" か "NG"
+      document.getElementById('kengen').value = judge;
+      if (judge == "NG") {
+        kengenNG();
+      }
+    }).kenkakuA(param4, param3);
+  }
+
+  //戻るボタンクリック
+  async function bkYosan(){//yosan.html(予算書インフォ)に戻る
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    const fId = document.getElementById('fId').value;
+    const access = document.getElementById('access').value;
+    const syaId = document.getElementById('syaId').value;
+    const pass = document.getElementById('pass').value;
+    const ds = document.getElementById('ds').value;
+    const urlA = await new Promise((res) => {
+      google.script.run.withSuccessHandler(res).getSetUrl("予算書アプリ");
+    });
+
+    const url = urlA + "?page=yosan" + "&param1=" + fId  + "&param2=" + access + "&param3=" + syaId + "&param4=" + pass + "&param5=" + ds;  
+    window.top.location.href = url;
+  }
+  //◆◆CSV読み込み＆リセットボタンクリック
+  function csv(id){
+    //alert("csvBt");
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    const passE = document.getElementById('pass');//権限用
+    const pass = passE.value;
+    
+    if(id == 'readBt'){
+      //アップロード方式にする
+      const msg = window.confirm("すでに予算書に内訳を読み込んでいる場合はリセットされますがよろしいですか");
+      if(msg == true){
+        const e = "内訳";
+        upLoad(e)//アップロードモーダル起動
+      }
+    }else if(id == 'resetBt'){
+      const msg = window.confirm('内訳鏡をリセットします');
+      if(msg == true){
+        document.getElementById('infoA').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+        google.script.run
+        .withFailureHandler(function(er){
+          alert('◆ERROR　失敗しました\n' + re.message);
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }).withSuccessHandler(function(dt){
+          if(dt == "NG"){
+            alert("こちらの機能は使用できません");
+          }else{
+            alert('内訳鏡の内容をリセットしました');
+          }
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }).csvReset(fId,pass);
+      }
+    }
+  }
+  //◆◆業者セレクトボタンクリック
+  function gyoSct(){
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    google.script.run 
+    .withFailureHandler(function(er){
+      alert('エラーが起きました\n' + er.message);
+      document.getElementById('infoA').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+    }).withSuccessHandler(function(dt){
+      //alert(dt);
+      const data = JSON.parse(dt);
+      document.getElementById('file1').value = data.fl1;
+      document.getElementById('file2').value = data.fl2;
+      document.getElementById('tan').innerText = "工事担当者：" + data.tan;
+      document.getElementById('ccmail').value = data.ccMail;
+      
+      //契約工種の反映rn
+      const gyoSctTE = document.getElementById('gyoSctT');
+      gyoSctTE.innerHTML = "";
+      const rn = data.rn1;
+      if(rn !== "なし"){
+        const last = rn.length;
+        const end = last + 1
+        let tbody = document.createElement('tbody');
+        let k = 0;
+        let k2 = 0;
+        for(let i=0; i<=end; i++){
+          if(i == end){
+            gyoSctTE.appendChild(tbody);
+            document.getElementById('controlPane').hidden = true;
+            document.getElementById('gyoSctPane').hidden = false;
+            document.getElementById('infoA').hidden = true;
+            document.querySelector('.overlay4').style.display = "none";
+          }else if(i == 0){
+            let tr = document.createElement('tr');
+            let th1 = document.createElement('th');
+            let th2 = document.createElement('th');
+            let th3 = document.createElement('th');
+            let th4 = document.createElement('th');
+            let th5 = document.createElement('th');
+            let th6 = document.createElement('th');
+            let th7 = document.createElement('th');
+            let th8 = document.createElement('th');
+            let th9 = document.createElement('th');
+            let th10 = document.createElement('th');
+            th1.textContent = "ROW";
+            th2.textContent = "工種";
+            th3.textContent = "ｾﾚｸﾄ業者";
+            th4.textContent = "発注金額";
+            th5.textContent = "";
+            th6.textContent = "案内発行"
+            th7.textContent = ""
+            th8.textContent = "発注発行"
+            th9.textContent = ""
+            th10.textContent = "発注書確認"
+            tr.appendChild(th1);
+            tr.appendChild(th2);
+            tr.appendChild(th3);
+            tr.appendChild(th4);
+            tr.appendChild(th5);
+            tr.appendChild(th6);
+            tr.appendChild(th7);
+            tr.appendChild(th8);
+            tr.appendChild(th9);
+            tr.appendChild(th10);
+            tbody.appendChild(tr);
+          }else if(rn[k][1] == 0){
+            k = k + 1;
+          }else if(rn[k][1] > 0){
+            k2 = k2 + 1;
+            let tr = document.createElement('tr');
+            for(let s=0; s<=9; s++){
+              if(s == 0){
+                let th = document.createElement('th');
+                th.textContent = k + 3;//ここはROWなので3の場合kは０
+                tr.appendChild(th);
+              }else if(s == 4){
+                let td = document.createElement('td');
+                td.insertAdjacentHTML('afterbegin','<input id="gid-' + k2 + '" type="button" value="業者変更" onclick="gyoHen(id)"/>');
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+              }else if(s == 6){
+                let td = document.createElement('td');
+                td.insertAdjacentHTML('afterbegin','<input id="aid-' + k2 + '" type="button" value="◇案内◇" onclick="anTyuKan(id)"/>');
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+              }else if(s == 8){
+                let td = document.createElement('td');
+                td.insertAdjacentHTML('afterbegin','<input id="tid-' + k2 + '" type="button" value="◆発注◆" onclick="anTyuKan(id)"/>');
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+              }else if(s == 9){
+                let td = document.createElement('td');
+                td.insertAdjacentHTML('afterbegin','<input id="haD-' + k2 + '" type="button" value="確認" onclick="hatyuKaku(id)"/>');
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                k = k + 1;
+              }else if(s == 1){//工種
+                let td = document.createElement('td');
+                td.textContent = rn[k][0];
+                tr.appendChild(td);
+              }else if(s == 2){//業者
+                let td = document.createElement('td');
+                td.textContent = rn[k][2];
+                tr.appendChild(td);
+              }else if(s == 3){
+                let td = document.createElement('td');
+                const kin = Number(rn[k][4]).toLocaleString(); 
+                td.textContent = kin;
+                td.style.textAlign = "right";
+                tr.appendChild(td);
+              }else if(s == 5){
+                let td = document.createElement('td');
+                td.textContent = rn[k][14];
+                tr.appendChild(td);
+              }else if(s == 7){
+                let td = document.createElement('td');
+                td.textContent = rn[k][12];
+                tr.appendChild(td);
+              }
+            }
+          }
+        }
+      }
+      //注文書単独リストの反映rn2
+      const tandokuTE = document.getElementById('tandokuT');
+      tandokuTE.innerHTML = "";
+      const rn2 = data.rn2;
+      if(rn2 !== "なし"){
+        const last2 = rn2.length
+        const end2 = last2 + 1;
+        let tbody2 = document.createElement('tbody');
+        let n = 0;
+        let n2 = 0;
+        for(let s=0; s<=end2; s++){
+          if(s == end2){
+            tandokuTE.appendChild(tbody2);
+          }else if(s == 0){
+            let tr = document.createElement('tr');
+            let th1 = document.createElement('th');
+            let th2 = document.createElement('th');
+            let th3 = document.createElement('th');
+            let th4 = document.createElement('th');
+            let th5 = document.createElement('th');
+            let th6 = document.createElement('th');
+            th1.textContent = "ROW";
+            th2.textContent = "工種";
+            th3.textContent = "ｾﾚｸﾄ業者";
+            th4.textContent = "発注金額";
+            th5.textContent = "発注発行";
+            th6.textContent = "発注書確認";
+            tr.appendChild(th1);
+            tr.appendChild(th2);
+            tr.appendChild(th3);
+            tr.appendChild(th4);
+            tr.appendChild(th5);
+            tr.appendChild(th6);
+            tbody2.appendChild(tr);
+          }else{
+            n2 = n2 + 1;
+            let tr = document.createElement('tr');
+            for(let s=0; s<=6; s++){
+              if(s == 0){
+                let th = document.createElement('th');
+                th.textContent = n + 3;//ここはROWなので3の場合kは０
+                tr.appendChild(th);
+              }else if(s == 5){
+                let td = document.createElement('td');
+                td.insertAdjacentHTML('afterbegin','<input id="haT-' + n2 + '" type="button" value="確認" onclick="hatyuKaku(id)"/>');
+                tr.appendChild(td);
+                tbody2.appendChild(tr);
+                n = n + 1;
+              }else if(s == 1){//工種
+                let td = document.createElement('td');
+                td.textContent = rn2[n][0];
+                tr.appendChild(td);
+              }else if(s == 2){//業者
+                let td = document.createElement('td');
+                td.textContent = rn2[n][2];
+                tr.appendChild(td);
+              }else if(s == 3){//金額
+                let td = document.createElement('td');
+                const kin = Number(rn2[n][4]).toLocaleString(); 
+                td.textContent = kin;
+                td.style.textAlign = "right";
+                tr.appendChild(td);
+              }else if(s == 4){
+                let td = document.createElement('td');
+                td.textContent = rn2[n][12];
+                tr.appendChild(td);
+              }
+            }
+          }
+        }
+      }
+    }).getKosyuList(fId);
+  }
+  //◆業者変更ボタンクリック
+  function gyoHen(id){//単独の場合を追加する
+    //alert("id:" + id);
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    //document.querySelector('.overlay5').style.display = "none";
+    //alert("gyoHen");
+    const passE = document.getElementById('pass');//権限確認用
+    const pass = passE.value;
+    const kengen = document.getElementById('kengen').value;
+    let kosyu = "";
+    let row = "";
+    if(kengen == "OK"){
+      const msgF = () => {
+        const idA = id.slice(0,2);
+        //alert("idA:" + idA);
+        if(id == "tanHenInpt"){
+          //これは”注文書（単独）からですよの記録
+          document.getElementById('tanHatuPane').hidden = true;
+          document.getElementById('tanHatuRec').value = "単独";//ここに"単独”記録されてる場合は単独発注
+          kosyu = "単独発注";
+          return true;
+        }else if(idA == "gi"){const index = Number(id.slice(4));
+          //alert("index:" + index);
+          const gyoSctTE = document.getElementById('gyoSctT');
+          row = gyoSctTE.rows[index].cells[0].textContent;
+          kosyu = gyoSctTE.rows[index].cells[1].textContent;//確認用に
+          document.getElementById('kosyuSet').value = index;//選択した工種のindexを記録
+          const ms = window.confirm(kosyu + "の業者変更をします");
+          document.getElementById('tanHatuRec').value = "";//記録されてる場合は書き換え
+          return ms;
+        }else{
+          document.getElementById('tanHatuRec').value = "";//記録されてる場合は書き換え
+          return true;
+        }
+      }
+      const msg = msgF();
+      //alert(msg);
+      if(msg == true){
+        google.script.run
+        .withFailureHandler(function(er){
+          alert("エラーが起きました\n" + er.message);
+        }).withSuccessHandler(function(dt){
+          document.getElementById('listSctGBt').hidden = true;//OKボタンを非表示
+          const sctGyoE = document.getElementById('sctGyo');
+          sctGyoE.innerHTML = ""
+          const rn = dt.split(',');
+          const last = Number(rn[0]);
+          const end = last + 1;
+          for(let i=0; i<=end; i++){
+            if(i == end){
+              document.getElementById('gSctInfo').innerText = "【" + kosyu + "】業者セレクト"
+              document.getElementById('listGyoT').innerHTML = "";//業者リストをリセット
+              document.getElementById('infoA').hidden = true;
+              document.querySelector('.overlay4').style.display = "none";
+              
+              document.getElementById('listGyoPane').hidden = false;
+              document.querySelector('.overlay5').style.display = "block";
+            }else if(i == 0){
+              let option = document.createElement('option');
+              option.value = "選択";
+              option.text = "選択";
+              sctGyoE.appendChild(option);
+            }else{
+              let option = document.createElement('option');
+              option.value = rn[i];//ROWをセット
+              option.text = rn[i];//名前をセット
+              sctGyoE.appendChild(option);
+            }
+          }
+        }).gyoKasira();
+      }else{
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+      }
+    }else{
+      alert("こちらの機能は使用できません");
+      document.getElementById('infoA').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+    }
+  }
+  //◆◆頭文字セレクトのonChange()
+  function changeGList(){
+    const listGyoTE = document.getElementById('listGyoT');
+    const sctGyoE = document.getElementById('sctGyo');
+    const kasira = sctGyoE.value;
+    document.getElementById('listGyoPane').hidden = true;
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    google.script.run
+    .withFailureHandler(function(er){
+      alert('エラーが発生性増した\n' + er.message);
+    }).withSuccessHandler(function(dt){
+      const rn = dt.split(',');
+      const last = Number(rn[0]);
+      const end = last + 1;
+      let k = 0;
+      listGyoTE.innerHTML = "";//リストをリセットする
+      const tbody = document.createElement('tbody');
+      for(let i=0; i<=end; i++){
+        if(i == end){
+          listGyoTE.appendChild(tbody);
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('listGyoPane').hidden = false;
+          document.getElementById('listSctGBt').hidden = false;//OKボタンを表示
+        }else if(i == 0){
+          let tr = document.createElement('tr');
+          let th1 = document.createElement('th');
+          let th2 = document.createElement('th');
+          th1.textContent = "ROW";
+          th2.textContent = "業者名";
+          tr.appendChild(th1);
+          tr.appendChild(th2);
+          tbody.appendChild(tr);
+        }else{
+          k = i + last;
+          let tr = document.createElement('tr');
+          let th1 = document.createElement('th');
+          let td2 = document.createElement('td');
+          th1.textContent = rn[k];
+          td2.textContent = rn[i];
+          tr.appendChild(th1);
+          tr.appendChild(td2);
+          tbody.appendChild(tr);
+        }
+      }
+    }).gyoKashiraList(kasira);
+  }
+  //◆◆戻る◆◆戻る◆◆戻る◆◆戻る◆◆戻る◆◆戻る◆◆戻る◆◆戻る◆◆戻る
+  //業者リストパネルの戻るをクリック
+  function listGBK(){
+    document.querySelector('.overlay5').style.display = "none";
+    document.getElementById('listGyoPane').hidden = true;
+    document.getElementById('anTyuPane').hidden = true;
+    document.getElementById('gyoSctPane').hidden = false;
+  }
+  //◆◆戻るボタンをクリック（メインパネルに戻る)
+  function back(){
+    document.getElementById('gyoSctPane').hidden = true;
+    document.getElementById('controlPane').hidden = false;
+    document.getElementById('anTyuPane').hidden = true;
+  }
+  function modalBK(){
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('utiwake').hidden = true;
+    document.querySelector('.overlay5').style.display = "none";
+    document.getElementById('listGyoPane').hidden = true;
+    //内訳のラベルの非表示
+    document.getElementById('anBt').hidden = true;
+    document.getElementById('tyuBt').hidden = true;
+    document.getElementById('yakuBt').hidden = true;
+    document.getElementById('henBt').hidden = true;
+    document.getElementById('tuiBt').hidden = true;
+  }
+
+  //◆◆業者セレクトOKをクリック（決定）
+  function listGsctOK(){
+    //単独注文書作成を分岐
+    const tanHatuRec = document.getElementById('tanHatuRec').value;
+    const index = document.getElementById('gyoSet').value;
+    const listGyoTE = document.getElementById('listGyoT');
+    const gyoRow = listGyoTE.rows[index].cells[0].textContent;
+    const gyo = listGyoTE.rows[index].cells[1].textContent;
+
+    if(tanHatuRec == "単独"){
+      document.getElementById("tanHGyo").innerText = gyo;
+      document.querySelector('.overlay5').style.display = "none";
+      document.getElementById('listGyoPane').hidden = true;
+      document.getElementById('tanHatuPane').hidden = false;
+      document.querySelector('.overlay5').style.display = "block";
+      document.getElementById('gyoRow').value = gyoRow;
+    }else{
+      //大規模なのか小規模なのかで分岐
+      const ds = document.getElementById('ds').value;
+      if(ds == "S"){
+        //金額の入力モーダル
+        syokiboHatyu();//pane-script2へ
+      }else{
+        document.getElementById('listGyoPane').hidden = true;
+        document.querySelector('.overlay5').style.display = "none";
+        document.getElementById('infoA').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+        
+        const index = document.getElementById('gyoSet').value;
+        const listGyoTE = document.getElementById('listGyoT');
+        const gyoRow = listGyoTE.rows[index].cells[0].textContent;
+        const gyo = listGyoTE.rows[index].cells[1].textContent;
+        
+        const kosyuSetE = document.getElementById('kosyuSet');
+        const kosyuIndex = kosyuSetE.value;
+        //alert(kosyuIndex);
+        const gyoSctTE = document.getElementById('gyoSctT');
+        const kin = gyoSctTE.rows[kosyuIndex].cells[3].textContent;
+        const kosyuRow = gyoSctTE.rows[kosyuIndex].cells[0].textContent;
+
+        const fIdE = document.getElementById('fId');
+        const fId = fIdE.value;
+
+        google.script.run
+        .withFailureHandler(function(er){
+          alert("エラーが起きました\n" + er.message);
+        }).withSuccessHandler(function(dt){
+          //dtは反映OKまたはNG（メッセージ）建設業がない場合
+          const rn = dt.split(',');
+          const judge = rn[0];
+          const mes = rn[1];//OKの場合は業者名の（株）を返す、NGの場合はメッセージ
+          if(judge == "OK"){
+            gyoSctTE.rows[kosyuIndex].cells[2].textContent = mes;//業者名（株）
+            document.getElementById('listGyoPane').hidden = true;
+            document.getElementById('infoA').hidden = true;
+            document.querySelector('.overlay4').style.display = "none";
+          }else{
+            alert(mes);
+            document.getElementById('infoA').hidden = true;
+            document.querySelector('.overlay4').style.display = "none";
+            document.getElementById('listGyoPane').hidden = false;
+          }
+        }).kosyuGyoRezi(gyoRow,gyo,kin,kosyuRow,fId);
+      }
+    }
+  }
+  //◆◆案内パネル表示◆◆クリック
+  function anTyuKan(id){
+    const index = Number(id.slice(4));
+    const anTyuF = () => {
+      const at = id.slice(0,3);
+      if(at == "aid"){
+        document.getElementById('anTyuInfo').innerText = "【案内】管理パネル";
+        document.getElementById('anBt2').hidden = false;
+        document.getElementById('tyuBt2').hidden = true;
+        return "案内";
+      }else if(at == "tid"){
+        document.getElementById('anTyuInfo').innerText = "【発注】管理パネル";
+        document.getElementById('anBt2').hidden = true;
+        document.getElementById('tyuBt2').hidden = false;
+        return "発注";
+      }
+    }
+    const anTyu = anTyuF();
+    //alert(index);
+    document.getElementById('kosyuSet').value = index;//選択した工種のindexを記録
+    const gyoSctTE = document.getElementById('gyoSctT');
+    const kosyuRow = gyoSctTE.rows[index].cells[0].textContent;
+    const kosyu = gyoSctTE.rows[index].cells[1].textContent;
+    const gyo = gyoSctTE.rows[index].cells[2].textContent;
+    document.getElementById('atGyo').value = "";//一旦消去
+    document.getElementById('atKosyu').value = "";//一旦消去
+    
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+
+    const anTyuTE = document.getElementById('anTyuT');
+    anTyuTE.innerHTML = "";//一旦リセット
+
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    
+    //anTyuの値で分ける
+    google.script.run
+    .withFailureHandler(function(er){
+      alert("エラーが起きました" + er.message);
+    }).withSuccessHandler(function(dt){
+      //alert(dt);
+      if(dt == "NG"){
+        alert("エラーが起きました\n業者または工種が合いませんでした")
+      }else{
+        const rn = dt.split(',');
+        let k = 0;
+        const tbody = document.createElement('tbody');
+        for(let i=0; i<=4; i++){
+          if(i == 4){
+            anTyuTE.appendChild(tbody);
+            document.getElementById('atGyo').value = gyo;
+            document.getElementById('atKosyu').value = kosyu;
+            document.getElementById('infoA').hidden = true;
+            document.querySelector('.overlay4').style.display = "none";
+            document.getElementById('anTyuPane').hidden = false;
+            document.getElementById('gyoSctPane').hidden = true;
+          }else if(i == 0){
+            let tr = document.createElement('tr');
+            let th1 = document.createElement('th');
+            let th2 = document.createElement('th');
+            let th3 = document.createElement('th');
+            let th4 = document.createElement('th');
+            th1.textContent = "種類";
+            th2.textContent = "金額/増減";
+            th3.textContent = "状況";
+            th4.textContent = "";
+            tr.appendChild(th1);
+            tr.appendChild(th2);
+            tr.appendChild(th3);
+            tr.appendChild(th4);
+            tbody.appendChild(tr);
+          }else{
+            let tr = document.createElement('tr');
+            for(let s=1; s<=5; s++){
+              if(s == 1){
+                let th = document.createElement('th');
+                if(i == 1){
+                  th.textContent = "本契約";
+                  tr.appendChild(th);
+                }else if(i == 2){
+                  th.textContent = "変更";
+                  tr.appendChild(th);
+                }else if(i == 3){
+                  th.textContent = "追加";
+                  tr.appendChild(th);
+                }
+              }else if(s == 4){
+                let td = document.createElement('td');
+                if(anTyu == "案内"){
+                  td.insertAdjacentHTML('afterbegin','<input id="anA-' + i + '" type="button" value="案内確認" onclick="utiKaku(id)"/>');
+                  tr.appendChild(td);
+                }else if(anTyu == "発注"){
+                  td.insertAdjacentHTML('afterbegin','<input id="tyu-' + i + '" type="button" value="発注確認" onclick="utiKaku(id)"/>');
+                  tr.appendChild(td);
+                }
+                
+              }else if(s == 5){
+                tbody.appendChild(tr);
+              }else{
+                const numF = () => {
+                  if(i == 1 && s == 2){
+                    let n = 0;
+                    return n;
+                  }else{
+                    return 1;
+                  }
+                }
+                const num = numF();
+                k = k + num;
+                const valF = () => {
+                  if(s == 2){
+                    kin = Number(rn[k]).toLocaleString()
+                    return kin;
+                  }else{
+                    return rn[k];
+                  }
+                }
+                const val = valF()
+                let td = document.createElement('td');
+                td.textContent = val;
+                //alert(rn[k]);
+                tr.appendChild(td);
+              }
+            }
+          }
+        } 
+      }
+    }).gyoAnTyu(kosyuRow,anTyu,fId);
+  }
+  
+  //◆◆案内＆発注ボタンクリック内訳書の確認
+  function utiKaku(id){
+    const index = Number(id.slice(4));
+    const anTyuF = () => {
+      const at = id.slice(0,3);
+      if(at == "anA"){
+        document.getElementById('anBt').hidden = false;
+        document.getElementById('tyuBt').hidden = true;
+        return "案内";
+      }else if(at == "tyu"){
+        document.getElementById('anBt').hidden = true;
+        document.getElementById('tyuBt').hidden = false;
+        return "発注";
+      }
+    }
+    const anTyu = anTyuF();
+    const hakoF = () => {
+      if(index == 1){
+        document.getElementById('yakuBt').hidden = false;
+        document.getElementById('henBt').hidden = true;
+        document.getElementById('tuiBt').hidden = true;
+        return "契約";
+      }else if(index == 2){
+        document.getElementById('yakuBt').hidden = true;
+        document.getElementById('henBt').hidden = false;
+        document.getElementById('tuiBt').hidden = true;
+        return "変更";
+      }else if(index == 3){
+        document.getElementById('yakuBt').hidden = true;
+        document.getElementById('henBt').hidden = true;
+        document.getElementById('tuiBt').hidden = false;
+        return "追加";
+      }
+    }
+    const hako = hakoF();
+    document.getElementById('hako').value = hako;
+    document.getElementById('anTyu').value = anTyu;
+
+    const cF = (d) => {
+      if(d == 5){
+        if(hako == "契約"){
+          return 7;
+        }else if(hako == "変更"){
+          return 18;
+        }else if(hako == "追加"){
+          return 7
+        }
+      }else if(d == 7){
+        if(hako == "契約"){
+          return 13;
+        }else if(hako == "変更"){
+          return 20;
+        }else if(hako == "追加"){
+          return 13
+        }
+      }else if(d == 8){
+        if(hako == "契約"){
+          return 10;
+        }else if(hako == "変更"){
+          return 17;
+        }else if(hako == "追加"){
+          return 17
+        }
+      }
+    }
+    //初回か再発行か
+    const reF = () => {
+      if(anTyu == "案内"){
+        const anTyuTE = document.getElementById('anTyuT');
+        const res = anTyuTE.rows[index].cells[2].textContent
+        return res;
+      }else if(anTyu == "発注"){
+        const anTyuTE = document.getElementById('anTyuT');
+        const res = anTyuTE.rows[index].cells[2].textContent
+        return res;
+      }
+    }
+    const re = reF();
+    document.getElementById('re').value = re;//reが済になってる場合⇒再発行扱い
+
+    const ukeF = () => {
+      if(anTyu == "案内"){
+        const anTyuTE = document.getElementById('anTyuT');
+        const res = anTyuTE.rows[index].cells[1].textContent
+        return res;
+      }else if(anTyu == "発注"){
+        const anTyuTE = document.getElementById('anTyuT');
+        const res = anTyuTE.rows[index].cells[1].textContent
+        return res;
+      } 
+    }
+    const uke = ukeF();
+    if(uke == "0"){
+      alert('金額/増減が、０の為発行はできません');
+    }else{
+      const kosyuSet = document.getElementById('kosyuSet').value;
+      const gyoSctTindex = Number(kosyuSet);
+      //alert("gyoSctTindex " + gyoSctTindex);
+      const kosyuRow = gyoSctT.rows[gyoSctTindex].cells[0].textContent;
+      
+      const kosyuA = gyoSctT.rows[gyoSctTindex].cells[1].textContent;
+      //anTyuが追加の場合は工種に追加を付ける
+      const kosyuF = () => {
+        if(hako == "追加"){
+          const result = "追加" + kosyuA;
+          return result;
+        }else{
+          return kosyuA;
+        }
+      }
+      const kosyu = kosyuF();
+
+      const gyo = gyoSctT.rows[gyoSctTindex].cells[2].textContent;
+
+      const fIdE = document.getElementById('fId');
+      const fId = fIdE.value;
+      
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      google.script.run
+      .withFailureHandler(function(er){
+        alert('エラー発生しました\n' + er.message);
+      }).withSuccessHandler(function(dt){
+        //内訳表示
+        if(dt == "NG"){
+          alert("エラーが発生しました\n工種が合わなかった可能性があります");
+        }else{
+          const rw = dt.length;//行数を調べる
+          // alert("rw " + rw);
+          // alert(dt[0][0]);
+          const end = rw + 1;
+          document.getElementById('utiwakeInfo').innerText = "【" + anTyu + "】内訳書 （" + hako + "）";
+          document.getElementById('utiKosyu').value = kosyu;
+          document.getElementById('utiGyo').value = gyo;
+          const utiwakeTE = document.getElementById('utiwakeT');
+          utiwakeTE.innerHTML = "";
+          const tbody = document.createElement('tbody');
+          let kin = 0;
+          for(let i=0; i<=end; i++){
+            //alert(i);
+            if(i == end){
+              utiwakeTE.appendChild(tbody);
+              //金額
+              const kinB = Math.floor(kin / 1000) * 1000;
+              const kingaku = kinB.toLocaleString();
+              document.getElementById('gokei').value = kingaku;//合計を記録 
+              document.getElementById('infoA').hidden = true;
+              document.querySelector('.overlay4').style.display = "none";
+              document.querySelector('.overlay5').style.display = "block";
+              document.getElementById('utiwake').hidden = false;
+            }else if(i == 0){
+              let tr = document.createElement('tr');
+              const val = ["No","項目","内容","仕様","単位","数量","単価","金額","備考"];
+              for(let s=0; s<=9; s++){
+                if(s == 9){
+                  tbody.appendChild(tr);
+                }else{
+                  let th = document.createElement('th');
+                  th.textContent = val[s];
+                  tr.appendChild(th);
+                }
+              }
+            }else{
+              const r = i - 1;
+              let tr = document.createElement('tr');
+              for(let d=0; d<=9; d++){
+                if(d == 9){
+                  tbody.appendChild(tr);
+                }else if(d == 0){
+                  let th = document.createElement('th');
+                  th.textContent = i;
+                  tr.appendChild(th);
+                }else if(d == 5){//数量
+                  let c = cF(d);
+                  let td = document.createElement('td');
+                  td.textContent = dt[r][c];
+                  tr.appendChild(td);
+                }else if(d == 6){//単価
+                  let td = document.createElement('td');
+                  let kinA = dt[r][12];
+                  val = kinA.toLocaleString()
+                  td.textContent = val;
+                  tr.appendChild(td);
+                }else if(d == 7){//金額
+                  let c = cF(d);
+                  let td = document.createElement('td');
+                  let kinA = dt[r][c];
+                  kin = kin + Number(kinA)
+                  val = kinA.toLocaleString();
+                  td.textContent = val;
+                  tr.appendChild(td);
+                }else if(d == 8){//備考
+                  let c = cF(d);
+                  let td = document.createElement('td');
+                  td.textContent = dt[r][c];
+                  tr.appendChild(td);
+                }else if(d == 1){//項目
+                  let c = d - 1;
+                  //alert(r + ',' + c);
+                  let td = document.createElement('td');
+                  td.textContent = dt[r][c];
+                  tr.appendChild(td);
+                }else{//2,3,4 
+                  let c = d + 2;
+                  let td = document.createElement('td');
+                  td.textContent = dt[r][c];
+                  tr.appendChild(td);
+                }
+              }
+            }
+          }
+        }
+      }).anTyuKakunin(kosyu,fId);
+    }
+  }
+  //◆◆CCメール追加
+  function plusMail(){
+    const syainE = document.getElementById('syain');
+    const num = syainE.options.length;
+    if(num > 0){//すでに読み込み済
+      document.getElementById('mailList').hidden = false;
+      document.querySelector('.overlay5').style.display = "block";
+    }else{//読み込む
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      google.script.run
+      .withFailureHandler(function(er){
+        alert("エラーが発生しました\n" + er.message);
+      }).withSuccessHandler(function(dt){
+        const rn = dt.split(',');
+        const last = Number(rn[0]);
+        const end = last + 1;
+        for(let i=0; i<=end; i++){
+          if(i == 0){
+            let option = document.createElement('option');
+            option.text = "選択";
+            option.value = "選択";
+            syainE.appendChild(option);
+          }else  if(i == end){
+            document.getElementById('infoA').hidden = true;
+            document.querySelector('.overlay4').style.display = "none";
+            document.getElementById('mailList').hidden = false;
+          }else{
+            const k = i + last;
+            let option = document.createElement('option');
+            option.text = rn[i];
+            option.value = rn[k];
+            syainE.appendChild(option);
+          }
+        }
+      }).syaMailList();
+    }
+  }
+  //社員セレクトonchange
+  function syaSct(){
+    const syainE = document.getElementById('syain');
+    const mail = syainE.value;
+    const index = syainE.selectedIndex;
+    const sya = syainE.options[index].text;
+    const msg = window.confirm("CCメール追加でよろしいですか\n社員:" + sya + "\nﾒｰﾙ：" + mail);
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    if(msg){
+      document.getElementById('mailList').hidden = true;
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      google.script.run
+      .withFailureHandler(function(er){
+        alert("エラーが発生しました\n" + er.message);
+      }).withSuccessHandler(function(dt){
+        document.getElementById('ccmail').value = dt;
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay5').style.display = "none";
+        document.querySelector('.overlay4').style.display = "none";
+      }).ccmailadd(mail,fId);
+    }
+  }
+  //◆ccメールリセットクリック
+  function ccReset(){
+    const msg = window.confirm('CCメールをリセットします\n再度設定する場合は”追加”ボタンからお願いします');
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    if(msg){
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      google.script.run
+      .withFailureHandler(function(er){
+        alert('エラーが発生しました\n' + er.message);
+      }).withSuccessHandler(function(dt){
+        if(dt == "OK"){
+          document.getElementById('ccmail').value = "";
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }
+      }).ccmailReset(fId);
+    } 
+  }
+
+  //◆◆案内、注文書発行◆◆
+  function hakoOK(e){
+    const kengen = document.getElementById('kengen').value;
+    //一旦ボタン無効
+    if(kengen == "OK"){
+      const gyo = document.getElementById('utiGyo').value;
+      const anTyuE = document.getElementById('anTyu');
+      const anTyu = anTyuE.value;
+      const messageE = document.getElementById('message');
+      const message = messageE.value;
+      const file1 = document.getElementById('file1').value;
+      const file2 = document.getElementById('file2').value;
+      let tenp = "";    
+      const msgAF = () => {
+        const judge1F = () => {
+          const res = window.confirm(gyo + "の" + anTyu + "開始してもよろしいですか"); 
+          if(res == true){
+            return "OK";
+          }else{
+            return "NG";
+          }
+        }
+        const judge1 = judge1F();
+        if(judge1 == "NG"){
+          return "NG";
+        }
+        const judge2F = () => {
+          if(message == ""){
+            const res2 = window.confirm('メッセージはなしでよろしいですか');
+            if(res2 == true){
+              return "OK";
+            }else{
+              return "NG";
+            }
+          }else{
+            return "OK";
+          }
+        }
+        const judge2 = judge2F();
+        if(judge2 == "NG"){
+          return "NG";
+        }
+        const judge3F = () => {
+        if(anTyu == "発注"){
+            tenp =  "添付なし";
+            return "OK";
+          }else if(anTyu == "案内" && file1 == "" && file2 == ""){
+            const msg = window.confirm("工程表など添付用のファイルがアップロードされてません,\n添付なしでよいですか");
+            if(msg){
+              tenp = "添付なし"
+              return "OK";
+            }else{
+              return "NG";
+            } 
+          }else{
+            const msg = window.confirm("アップロードファイルは添付しますか");
+            if(msg){
+              tenp = "添付する";
+              return "OK";
+            }else{
+              tenp = "添付なし";
+              return "OK";
+            }
+          }
+        }
+        const judge3 = judge3F();
+        if(judge3 == "OK"){
+          return "OK";
+        }else{
+          return "NG";
+        }
+      }
+      const msgA = msgAF();
+
+      if(msgA == "OK"){
+        const hakoE = document.getElementById('hako');
+        const hako = hakoE.value;
+        
+        const hakoBF = () => {
+          if(hako == "追加"){
+            const msg = window.confirm("今回の注文書は追加工事で、本工事の変更はないですか\n両方の場合はNOです");
+            if(msg == true){
+              return hako;
+            }else{
+              return "両方";
+            }
+          }else if(hako == "変更"){
+            const msg = window.confirm("今回の注文書は本工事で、追加工事の変更または追加はないですか\n両方の場合はNOです");
+            if(msg == true){
+              return hako;
+            }else{
+              return "両方";
+            }
+          }else{
+            return hako;
+          }
+        }
+        const hakoB = hakoBF();
+
+        const kosyuSetE = document.getElementById('kosyuSet');
+        const kosyuSet = kosyuSetE.value;
+        const index = Number(kosyuSet);
+        //alert(index);
+        const gyoSctTE = document.getElementById("gyoSctT");
+        const kosyuRow = gyoSctTE.rows[index].cells[0].textContent;
+        const reE = document.getElementById('re');
+        const re = reE.value;//新規か、再発行かを"済"の場合は再発行
+      
+        const syatyoF = () => {
+          if(anTyu == "案内"){
+            const res = window.confirm("CCに社長を含めますか");
+            return res
+          }else{
+            return false;
+          }
+        }
+        const syatyo = syatyoF();
+        
+        const dayF = () => {
+          const now = new Date();
+          const y = now.getFullYear();
+          const m = now.getMonth() + 1;
+          const d = now.getDate();
+          const niti = y + "年" + m + "月" + d + "日";
+          if(anTyu == "発注"){
+            const msg = window.confirm('発注日は今日の日付でOKですか');
+            if(msg == true){
+              return niti;
+            }else{
+              const msg2 = window.confirm('工期の着工日でよいですか');
+              if(msg2 == true){
+                return "着工日";
+              }else{
+                const msg3 = window.prompt('発注日を入力ください');
+                return msg3;
+              }
+            }
+          }else{
+            return niti;    
+          }
+        }
+        const day = dayF();
+        document.getElementById('infoA').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+        document.getElementById('utiwake').hidden = true;
+        document.querySelector('.overlay5').style.display = "none";
+        const fIdE = document.getElementById('fId');
+        const fId = fIdE.value;
+        
+        document.getElementById('utiOKBt').disabled = false;//ボタン無効の解除
+        google.script.run
+        .withFailureHandler(function(er){
+          alert('エラーが発生しました\n' + er.message);
+        }).anTyuHako(hako,anTyu,kosyuRow,re,message,tenp,syatyo,day,fId,hakoB);
+        if(anTyu == "案内"){
+          alert("案内メールは自動で送信されます\n送信完了チャットを送ります");
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+          //パネルに発行を記録
+          gyoSctTE.rows[index].cells[5].textContent = "発行発行";
+        }else if(anTyu == "発注"){
+          alert('準備が出来次第、発注書をチャット送信します');
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+          gyoSctTE.rows[index].cells[7].textContent = "本日発行";
+        }
+      }        
+    }else{
+      alert("こちらの機能は使用できません");
+    }
+  }
+  //◆◆発注書の確認パネルオープン
+  function hatyuKaku(id){
+    const msg = window.confirm("別ウインドウで発注書PDFを開きます");
+    if(msg == true){
+      //alert(id);
+      const index = Number(id.slice(4));
+      //alert(index);
+      const kinds = id.slice(0,3);
+      const gyoSctTE = document.getElementById('gyoSctT');
+      const tandokuTE = document.getElementById('tandokuT');
+      const gyoF = () => {
+        if(kinds == "haS"){//小規模の場合は変更と追加ボタンを非表示
+          const g = gyoSctTE.rows[index].cells[1].textContent;
+          return g;
+        }else if(kinds == "haD"){
+          const g = gyoSctTE.rows[index].cells[2].textContent;
+          return g;
+        }else if(kinds == "haT"){
+          const g = tandokuTE.rows[index].cells[2].textContent;
+          return g;
+        }
+      }
+      const gyo = gyoF();
+      const dsF = () => {
+        if(kinds == "haD" || kinds == "haT"){
+          return "D";
+        }else if(kinds == "haS"){
+          return "S";
+        }
+      }
+      const ds = dsF();
+      const kRowF = () => {
+        if(kinds == "haT"){
+          return tandokuTE.rows[index].cells[0].textContent;
+        }else{
+          return gyoSctTE.rows[index].cells[0].textContent;
+        }
+      }
+      const kRow = kRowF();
+      const fIdE = document.getElementById('fId');
+      const fId = fIdE.value;
+      google.script.run
+      .withFailureHandler(function(er){
+        alert('◆ERRORになりました\n' + er.message);
+      }).withSuccessHandler(function(dt){
+        if(dt == "なし"){
+          alert('発注書の登録がないか、請書がまだ登録されてません');
+        }else{
+          window.open(dt);
+        }
+      }).hatyuGetUrl(fId,ds,gyo,kRow,kinds);
+    }
+  }
+  //🔷🔷発注書単独登録（一式、人工）書類上必要な場合はこちらで登録する用
+  function tanHatu(e){
+    if(!e){
+      //パネルオープン
+      document.getElementById('tanHatuPane').hidden = false;
+      document.querySelector('.overlay5').style.display = "block";
+      const gen = document.getElementById('genmei').value;
+      document.getElementById('tanHGen').innerText = gen;
+    }else if(e == "bk"){//戻るボタン
+      document.getElementById('tanHatuPane').hidden = true;
+      document.querySelector('.overlay5').style.display = "none";
+    }
+  }
+  //単独発注書の請負金額の３桁カンマ対応用
+  function tanHKinHen(){
+    const tanHKin = document.getElementById('tanHKin').value;
+    const kin = comma3(tanHKin);
+    document.getElementById('tanHKin').value = kin;
+  }
+
+  //🔹🔹３桁カンマに変換する（全角数字にも対応）
+  function comma3(value) {
+    if (typeof value !== 'string') value = String(value);
+
+    // 全角数字→半角へ変換
+    value = value.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+
+    // カンマ除去（すでに入ってる場合）
+    value = value.replace(/,/g, '');
+
+    // 数値チェック（数字以外が混じっていたらNaN扱いに）
+    const num = Number(value);
+    if (isNaN(num)) return ''; // 不正な場合は空文字で返す
+
+    // 3桁カンマ付け
+    return num.toLocaleString();
+  }
+
+  //🔹🔹注文書（単独）発行
+  function tanHatuRezi(){
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    const tanHGenE = document.getElementById('tanHGen');
+    const gen = tanHGenE.innerText;
+    const tanHKindsE = document.getElementById('tanHKinds');
+    const nin = tanHKindsE.value;
+    const tanHKosyuE = document.getElementById('tanHKosyu');
+    const kosyu = tanHKosyuE.value;
+    const tanHGyoE = document.getElementById('tanHGyo');
+    const gyo = tanHGyoE.innerText;
+    const tanHKinE = document.getElementById('tanHKin');
+    const kin = tanHKinE.value;
+    const tanHMsgE = document.getElementById('tanHMsg');
+    const message = tanHMsgE.value;
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    const gyoRowE = document.getElementById('gyoRow');
+    const gyoRow = gyoRowE.value;
+    if(tanHKinds == ""){
+      alert("工種を入力ください");
+      document.getElementById('infoA').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+      return;
+    }else if(tanHKin == ""){
+      alert("発注金額を入力ください");
+      document.getElementById('infoA').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+      return;
+    }
+    const msg = window.confirm("注文書を作成します\n現場名：" + gen + "\n識別：" + nin + "\n工種：" + kosyu + "\n発注先：" + gyo + "\n発注金額：" + kin);
+    const dayF = () => {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      const d = now.getDate();
+      const niti = y + "年" + m + "月" + d + "日";
+      const msg = window.confirm('発注日は今日の日付でOKですか');
+      if(msg == true){
+        return niti;
+      }else{
+        const msg2 = window.confirm('工期の着工日でよいですか');
+        if(msg2 == true){
+          return "着工日";
+        }else{
+          const msg3 = window.prompt('発注日を入力ください');
+          return msg3;
+        }
+      }
+    }
+    if(msg){
+      const day = dayF();
+      const data = [gen,nin,kosyu,gyo,kin,message,fId,day,gyoRow]
+      const json = JSON.stringify(data);
+      google.script.run.withFailureHandler(function(er){
+        alert("◆◇ERROR\n" + er.message);
+      }).tanHRezist(json);
+      alert("案内メールは自動で送信されます\n送信完了チャットを送ります");
+      document.getElementById('infoA').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+      //パネルを閉じる
+      document.querySelector('.overlay5').style.display = "none";
+      document.getElementById('tanHatuPane').hidden = true;
+    }
+  }
+</script>

@@ -1,0 +1,198 @@
+<script>
+  //◆◆アップロードモーダル表示
+  function upLoad(id){
+    document.querySelector('.overlay5').style.display = "block";
+    document.getElementById('upLoadPane').hidden = false;
+    document.getElementById('upfileNo').value = id;//どっちのボタンをクリックしたか記録
+    if(id == "内訳"){
+      document.getElementById('utiUpInfo').innerText = "（注意）内訳エクセルファイルは内訳シートのみにしてください";
+      document.getElementById('utiUpInfo').hidden = false;//ちょっと時間かかります表示
+    }else if(id == "flUp1" || id == "flUp2"){
+      document.getElementById('utiUpInfo').innerText = "工事案内添付ファイルをアップロード";
+    }
+    document.getElementById('upBt').value = id;//何のアプロードなのかを記録する
+  }
+  //◆◆アップロードモーダル閉じる
+  function UpPaneBK(){
+    document.querySelector('.overlay5').style.display = "none";
+    document.getElementById('upLoadPane').hidden = true;
+  }
+  //◆◆請求書アップロード◆◆請求書アップロード◆◆請求書アップロード
+  //◆アップロード用◆アップロード用◆アップロード用
+
+  function selectFiles(selectedFiles) {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    const file = selectedFiles[0]; // 最初の1枚のみ使う
+    const reader = new FileReader();
+    document.querySelector('.overlay5').style.display = "none"
+    document.getElementById('upLoadPane').hidden = true;
+    document.getElementById('upInfoPane').hidden = false;
+    document.querySelector('.overlay5').style.display = "block"
+    document.getElementById('upInfo').innerHTML = `アップロード中⇒⇒<br>ファイル名：${file.name}`;
+    reader.onloadend = function(e){
+      const fIdE = document.getElementById('fId');
+      const fId = fIdE.value;
+      const upBtE = document.getElementById('upBt');
+      const upBt = upBtE.value;
+      const result = reader.result;
+      // Base64データ部分だけ抽出（"data:〜;base64," を除去）
+      const base64 = result.split(',')[1];
+
+      if (upBt == "内訳") {
+        // ファイル名を取得
+        const file = document.getElementById("inptFile").files[0];
+        const fileName = file.name.toLowerCase(); // 小文字に変換して比較しやすくする
+
+        // 判定条件を「MIMEタイプ」から「拡張子の文字列」に変更
+        const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xlsm');
+
+        if (isExcel) {
+          google.script.run
+            .withFailureHandler(function (er) {
+              alert('◆ERROR　ファイルを読み込めませんでした\n' + er.message);
+            })
+            .withSuccessHandler(function(dt){
+              const data = JSON.parse(dt);
+              document.getElementById('utiId').value = data.fileId;
+              const base = data.base;
+              showPdfOnCanvas(base);
+            })
+            .convertExcelToPdfBase64(base64, file.name);
+        } else {
+          // エラーメッセージも.xlsmを含めるように修正
+          alert("読み込めないファイル形式です\nファイル形式はエクセルファイル(.xlsx / .xlsm)に限ります");
+          document.getElementById('upInfoPane').hidden = true;
+          document.querySelector('.overlay5').style.display = "none";
+        }
+      }else{
+        const upfileNoE= document.getElementById('upfileNo');
+        const upfileNo = upfileNoE.value;
+        google.script.run
+        .withFailureHandler(function(err) {
+          alert("\n\n" + err.message + "\n\nファイル名：" + file.name);
+        }).withSuccessHandler(function(dt) {
+          //◆アップロードファイルが登録されたので業者リスト、業者Infoデータを更新しておく
+          alert(dt);//ファイルIDを返す
+          if(upfileNo == "flUp1"){
+            document.getElementById('file1').value = dt;
+          }else if(upfileNo == "flUp2"){
+            document.getElementById('file2').value = dt;
+          }
+          document.getElementById('upInfoPane').hidden = true;
+          document.getElementById('utiUpInfo').hidden = true;
+          document.querySelector('.overlay5').style.display = "none";
+
+        }).onUpload(reader.result, file.name, file.type,upfileNo,fId);
+      }
+    }
+    reader.readAsDataURL(file); // ← 忘れずに実行
+  }
+  //😃😃アップロードファイルの画像表示
+  function showPdfOnCanvas(base64) {
+    document.getElementById('utiColumnKaku').hidden = false;//内訳書の列の確認を表示
+    const pdfData = atob(base64);
+    const uint8Array = new Uint8Array([...pdfData].map(char => char.charCodeAt(0)));
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+    loadingTask.promise.then(function (pdf) {
+      // 1ページ目だけ表示
+      pdf.getPage(1).then(function (page) {
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale: scale });
+        const canvas = document.getElementById('log-preview-canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        page.render(renderContext);
+      });
+    });
+  }
+  //😃😃内訳書列確認OK
+  function utiFileOK(){
+    document.getElementById('utiUpInfo2').hidden = false;
+    document.getElementById('utiColumnKaku').hidden = true;
+    document.getElementById('log-preview-canvas').innerHTML = "";
+
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    const utiIdE = document.getElementById('utiId');
+    const utiId = utiIdE.value;
+    const columnF = () => {
+      let val = [];
+      for(let i=1; i<=10; i++){
+        if(i == 9){
+          val.push("A");//AAには何も入ってないことが前提
+        }else{
+          const id = "uti" + i;
+          val.push(document.getElementById(id).value);
+        }
+      }
+      return val;
+    }
+    const column = columnF();
+    const data = {
+      utiId: utiId,
+      fId: fId,
+      column: column
+    }
+    const json = JSON.stringify(data);
+    google.script.run
+    .withFailureHandler(function(er){
+      alert("◆◇ERROR\n" + er);
+    }).withSuccessHandler(function(dt){
+      document.getElementById('utiUpInfo2').hidden = true;
+      document.getElementById('upInfoPane').hidden = true;
+      document.querySelector('.overlay5').style.display = "none";
+      document.getElementById('inptFile').value = "";
+      //upFileReset()//アップロードファイルのリセット
+      alert("別ウィンドウで表示します");
+      window.open(dt);
+    }).readCSV(json);
+  }
+  //😃アップロードファイルのリセット
+  function upFileReset(){
+    //upFile(アップロードを一旦削除して新しくする
+    const oldInput = document.getElementById('inptFile');
+    const newInput = oldInput.cloneNode(true);
+    oldInput.parentNode.replaceChild(newInput, oldInput);
+
+    // イベントハンドラを再登録
+    newInput.addEventListener('change', function() {
+      selectFiles(files);
+    });
+    return "OK";
+  }
+  //😃内訳書列確認キャンセル
+  function utiFileBK(){
+    document.getElementById('utiUpInfo2').hidden = true;
+    document.getElementById('upInfoPane').hidden = true;
+    document.querySelector('.overlay5').style.display = "none";
+    document.getElementById('inptFile').value = "";
+    document.getElementById('log-preview-canvas').innerHTML = "";
+  }
+
+  //◆◆アップロードファイルオープン
+  function flOpen(id){
+    if(id == "flOP1"){
+      const id = document.getElementById('file1').value;
+      if(id == ""){
+        alert('ファイルが登録されてません');
+      }else{
+        const fileUrl = "https://drive.google.com/file/d/" + id + "/view";  // ファイルURLを作成
+        window.open(fileUrl);
+      }
+    }else if(id == "flOP2"){
+      const id = document.getElementById('file2').value;
+      if(id == ""){
+        alert('ファイルが登録されてません');
+      }else{
+        const fileUrl = "https://drive.google.com/file/d/" + id + "/view";  // ファイルURLを作成
+        window.open(fileUrl);
+      }
+    }
+  }
+</script>

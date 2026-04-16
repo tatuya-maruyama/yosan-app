@@ -1,0 +1,773 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+<script>
+  //😃😃現場情報→現場登録バージョンに変更する
+  function changeGenRezi(){
+    const infoE = document.getElementById('info');
+    const rn = [0,1,6,7,8,9,10,11,12,13,19,20,24];//非表示の行数(0始まり)
+    const last = rn.length;
+    for(let i=0; i<last ; i++){
+      const index = rn[i];
+      infoE.rows[index].style.display = "none";
+    }
+    //readonlyを外す
+    for(let s=0; s<26; s++){
+      if(s == 16 || s == 17){
+
+      }else{
+        const id = "info" + s;
+        document.getElementById(id).readOnly = false;
+        document.getElementById(id).style.border = "1px solid  #4169e1"; // 太めで青色の枠
+      }
+    }
+    //セレクトのdisableを外す
+    document.getElementById('info16').disabled = false;
+    document.getElementById('info17').disabled = false;
+  }
+  //◆◆長谷工CSV◆◆長谷工CSV◆◆長谷工CSV◆◆長谷工CSV◆◆長谷工CSV◆◆長谷工CSV◆◆長谷工CSV
+  //◆◆長谷工CSVアップロードパネル
+  function csvUpPaneOP(e){
+    //alert("e " + e); 
+    if(e == "csvBt" || e == "csvRezi"){
+      document.getElementById('upLoadInfo').innerText = "長谷工の発注CSVファイルをアップロードください";
+      document.getElementById('pastePane').hidden = true;
+      document.getElementById('which').value = e;//はcsvBt又はpdfBt
+      document.getElementById('pdfImage').value = "csv";
+    }else if(e == "pdfBt" || e == "pdf1"){
+      document.getElementById('upLoadInfo').innerText = "契約書PDFをアップロードください";
+      document.getElementById('pastePane').hidden = true;
+      document.getElementById('which').value = e;//はcsvBt又はpdfBt
+      document.getElementById('pdfImage').value = "pdf";
+    }else if(e == "newPdf"){
+      const msg = window.confirm("編集不可ではない契約書PDF処理をします\n編集不可のPDFの場合はキャンセルをクリックし進めてください");
+      if(msg == true){
+        document.getElementById('upLoadInfo').innerText = "【新規】契約書PDFをアップロードください";
+        document.getElementById('pdfImage').value = "pdf";
+        document.getElementById('pastePane').hidden = true;
+        document.getElementById('which').value = e;//はcsvBt又はpdfBt
+      }else{
+        document.getElementById('upLoadInfo').innerText = "【新規】編集不可PDFの場合は画像をアップロードください\n※PDFを開いてスクリーンショットを撮影し貼り付\nwinの場合　shift+win+S\nmacの場合　control+shift+command+4";
+        document.getElementById('pdfImage').value = "image";
+        document.getElementById('pastePane').hidden = false;
+        document.getElementById('which').value = e;//はcsvBt又はpdfBt
+      }
+    }else if(e == "reziPdf"){
+      const msg = window.confirm("編集不可ではない契約書PDF処理をします\n編集不可のPDFの場合はキャンセルをクリックし進めてください");
+      if(msg == true){
+        document.getElementById('upLoadInfo').innerText = "【新規】契約書PDFをアップロードください";
+        document.getElementById('pdfImage').value = "pdf";
+        document.getElementById('pastePane').hidden = true;
+        document.getElementById('which').value = e;//はcsvBt又はpdfBt
+      }else{
+        document.getElementById('upLoadInfo').innerText = "【新規】編集不可PDFの場合は画像をアップロードください\n※PDFを開いてスクリーンショットを撮影し貼り付\nwinの場合　shift+win+S\nmacの場合　control+shift+command+4";
+        document.getElementById('pdfImage').value = "image";
+        document.getElementById('pastePane').hidden = false;
+        document.getElementById('which').value = e;//はcsvBt又はpdfBt
+      }
+    }
+    document.getElementById('upImage').style.display = "none";
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('keiyakuListPane').hidden = true;
+    document.getElementById('csvSctList').hidden = true;
+    document.getElementById('upLoadPane').hidden = false;
+    
+    document.querySelector('.overlay4').style.display = "block";
+  }
+
+  //◆アップロード用◆アップロード用◆アップロード用
+  // const reader = new FileReader();
+  // let fileCounter = 0;
+  // let files = []; 
+  //読み込み後の処理
+  
+
+  // 😃😃スクショをペースト処理
+  window.addEventListener('paste', function (e) {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const blob = item.getAsFile();
+      if (blob) {
+        blob.name = blob.name || '貼り付け画像.png'; // ← 名前を補完
+
+        document.getElementById('pdfImage').value = 'image';
+
+        const tempReader = new FileReader();
+        tempReader.onload = function (event) {
+          const dataUrl = event.target.result;
+
+          // 表示だけ行う
+          document.getElementById('upImage').src = dataUrl;
+          document.getElementById('upImage').style.display = "block";
+          document.querySelector('.overlay4').style.display = "none";
+
+          document.getElementById('upLoadPane').hidden = true;
+          document.getElementById('upInfoPane').hidden = false;
+          document.querySelector('.overlay4').style.display = "block";
+          document.getElementById('upInfo').innerHTML = `アップロード中⇒⇒<br>ファイル名：${blob.name}`;
+          
+          // selectFilesに配列として渡す
+          selectFiles([blob]);
+        };
+        tempReader.readAsDataURL(blob); // 表示用に一度読ませる
+      }
+    }
+  }
+});
+
+
+  // PDFファイルを画像に変換してData URLを返す関数
+  async function loadPDF(pdfFile) {
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    const scale = 3;
+    const viewport = page.getViewport({ scale: scale });
+
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    context.imageSmoothingEnabled = false; // 滲み防止
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport
+    }).promise;
+
+    // JPEG形式でBase64画像を返す
+    return canvas.toDataURL("image/jpeg", 1.0);
+  }
+
+  //😃😃まずここから
+  function selectFiles(selectedFiles) {
+    //alert("selectFiles実行");
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    const file = selectedFiles[0]; // 最初の1枚のみ使う
+    const reader = new FileReader();
+    // 表示切替（アップロード中）
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('upLoadPane').hidden = true;
+    document.getElementById('upInfoPane').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    document.getElementById('upInfo').innerHTML = `アップロード中⇒⇒<br>ファイル名：${file.name}`;
+
+    reader.onloadend = async function(e){
+      //◆前もってアップロードする用
+      const upKeiyakuE = document.getElementById('upKeiyaku');
+      let upKeiyaku = upKeiyakuE.value;
+
+      const fIdE = document.getElementById('fId');
+      const fId = fIdE.value;
+      //長谷工CSVなのか注文書PDFなのか
+      const whichE = document.getElementById('which');
+      const which = whichE.value;//csvBt又はpdfBt
+      //alert("which " + which);
+      //契約書の番号
+      const sctE = document.getElementById('sct');
+      const sct = sctE.value;
+      //alert(fId + "," + which + "," + sct);
+      //const file = files[fileCounter];
+      const fileType = file.type; // ファイルタイプを取得
+      const pdfImageE = document.getElementById('pdfImage');
+      const pdfImage = pdfImageE.value;
+      //alert(pdfImage);
+      let resizedDataUrl = "";
+
+      //alert("which:" + which + ", pdfImage:" + pdfImage);
+
+      // ファイルの判定とファイルをとりあえずアップロード
+      if(which == "pdf1"){
+        // PDFファイルの場合、PDFページを画像に変換
+        const dataURL = e.target.result; // base64を含むDataURL
+        const base64 = dataURL.split(',')[1]; // base64だけ抽出
+        const contentType = file.type;
+        //ファイルを一旦保存してしまう
+        google.script.run
+          .withSuccessHandler(function(fileId) {
+            document.getElementById('upKeiyaku').value = fileId;
+            alert("fileId " + fileId);
+            if(which == "pdf1"){//csv登録からの契約PDFアップロード
+              //取得内容を反映してモーダル解除
+              document.getElementById('upInfoPane').hidden = true;
+              document.getElementById('btPane').hidden = true;
+              document.getElementById('btPane2').hidden = false;
+              document.querySelector('.overlay4').style.display = "none";//ファイルUPLOADパネル
+              document.querySelector('.overlay5').style.display = "none";//現場登録初回パネル
+              alert("契約書のアップロード完了しました")
+            }
+          })
+          .withFailureHandler(function(error) {
+            alert("◇◆ERROR アップロード失敗\n" + error.message);
+          })
+          .uploadToDrive(base64, file.name, contentType);
+      }else if(pdfImage == "pdf"){
+        if (fileType === "application/pdf") {
+          // PDFファイルの場合、PDFページを画像に変換
+          resizedDataUrl = await loadPDF(file); // PDFを画像に変換
+          document.getElementById('upImage').setAttribute('src', resizedDataUrl);
+          document.getElementById('upImage').style.display = "block";
+        } else {
+          alert("サポートされていないファイル形式です。");
+          document.querySelector('.overlay4').style.display = "none"
+          document.getElementById('upLoadPane').hidden = false;
+          document.getElementById('upInfoPane').hidden = true;
+          document.querySelector('.overlay4').style.display = "block"
+          return;
+        }
+
+        upKeiyaku = await new Promise((resolve, reject) => {
+          const dataURL = e.target.result; // base64を含むDataURL
+          const base64 = dataURL.split(',')[1]; // base64だけ抽出
+          const contentType = file.type;
+
+          //ファイルを一旦保存してしまう
+          google.script.run
+            .withSuccessHandler(function(fileId) {
+              document.getElementById('upKeiyaku').value = fileId;
+              resolve(fileId);//
+            })
+            .withFailureHandler(function(error) {
+              alert("◇◆ERROR アップロード失敗\n" + error.message);
+            })
+            .uploadToDrive(base64, file.name, contentType);
+        })
+
+      }else if (fileType.startsWith("image/")) { // jpeg/pngどちらもOKにする場合
+        const imageUrl = await new Promise((resolve, reject) => {
+          const readerImg = new FileReader();
+          readerImg.onload = function(e) {
+            resolve(e.target.result); // Base64のURLが得られる
+          };
+          readerImg.onerror = reject;
+          readerImg.readAsDataURL(file); // ←ここで画像をBase64化
+        });
+
+        document.getElementById('upImage').setAttribute('src', imageUrl);
+        document.getElementById('upImage').style.display = "block";
+        resizedDataUrl = imageUrl; // OCRに渡す用にも保持しておく
+
+      }else if(pdfImage == "csv"){
+        if (file.type !== "text/csv") {
+          alert("CSVファイルのみアップロード可能です");
+          document.querySelector('.overlay4').style.display = "none"
+          document.getElementById('upLoadPane').hidden = false;
+          document.getElementById('upInfoPane').hidden = true;
+          document.querySelector('.overlay4').style.display = "block"
+          return;
+        }
+        
+        upKeiyaku = await new Promise((resolve, reject) => {
+          const dataURL = e.target.result; // base64を含むDataURL
+          const base64 = dataURL.split(',')[1]; // base64だけ抽出
+          const contentType = file.type;
+
+          //ファイルを一旦保存してしまう
+          google.script.run
+            .withSuccessHandler(function(fileId) {
+              document.getElementById('upKeiyaku').value = fileId;
+              resolve(fileId);//
+            })
+            .withFailureHandler(function(error) {
+              alert("◇◆ERROR アップロード失敗\n" + error.message);
+            })
+            .uploadToDrive(base64, file.name, contentType);
+        })
+      } else {
+        alert("サポートされていないファイル形式です（JPEGまたはPNG）");
+        document.querySelector('.overlay4').style.display = "none"
+        document.getElementById('upLoadPane').hidden = false;
+        document.getElementById('upInfoPane').hidden = true;
+        document.querySelector('.overlay4').style.display = "block"
+        return;
+      }
+      
+      if(which == "newPdf" || which == "pdfBt" || which == "reziPdf"){
+        // Google Cloud Vision API を呼び出して OCR 処理
+        //alert("which " + which);
+        const pdfText = await new Promise((resolve, reject) => {
+          google.script.run
+            .withFailureHandler(function(err) {
+              //😃😃ここで読み込まないPDFはファイル自体をアップロードして保存したい
+              alert("読み込めないPDFの可能性があります画像にして再度アップロードしてみてください");
+              document.getElementById('upLoadInfo').innerText = "【新規】編集不可PDFの場合は画像をアップロードください\n※PDFを開いてスクリーンショットを撮影し貼り付\nwinの場合　shift+win+S\nmacの場合　control+shift+command+4";
+              document.getElementById('pdfImage').value = "image";
+              document.querySelector('.overlay4').style.display = "none"
+              document.getElementById('upLoadPane').hidden = false;
+              document.getElementById('upInfoPane').hidden = true;
+              document.getElementById('pastePane').hidden = false;
+              document.querySelector('.overlay4').style.display = "block"
+            })
+            .withSuccessHandler(function(result) {
+              resolve(result);
+            })
+            .extractTextFromImage(resizedDataUrl);  // OCR処理を実行
+        });
+
+        // ChatGPT API でテキストを解析
+        const parsedInfo = await new Promise((resolve, reject) => {
+          google.script.run
+            .withFailureHandler(function(err) {
+              reject(err);
+            })
+            .withSuccessHandler(function(result) {
+              const kin = result[0].toLocaleString();
+              const msg = window.prompt("金額を確認ください\n間違ってる場合は訂正ください",kin);
+              result[0] = msg;
+              //[kin,start,finish,client,day,add,tan,gen];
+              alert("金額: " + result[0] + "\n着工: " + result[1] + "\n完了： " + result[2] + "\n顧客: " + result[3] + "\n発行日: " + result[4] + "\n住所: " + result[5] + "\n担当者: " + result[6] + "\n物件名: " + result[7]);
+              resolve(result);
+            })
+            .analyzePdfText(pdfText);
+        });
+        
+        google.script.run
+        .withFailureHandler(function(err) {
+          alert("\n\n" + err.message + "\n\nファイル名：" + file.name);
+          //fileCounter++;
+          //postNextFile();
+        }).withSuccessHandler(async function(dt) {
+          //alert(dt);
+          if(which == "pdfBt"){
+            const row = Number(sct);
+            // alert("pdfBt " + row);
+            // alert(dt);
+            document.getElementById('keiyakuListT').rows[row].cells[3].textContent = dt[0];//fId
+            document.getElementById('keiyakuListT').rows[row].cells[2].textContent = dt[1].toLocaleString();//金額
+            document.querySelector('.overlay4').style.display = "none";
+            document.getElementById('keiyakuListPane').hidden = false;
+            document.getElementById('upLoadPane').hidden = true;
+            document.querySelector('.overlay4').style.display = "block";
+            document.getElementById('upInfoPane').hidden = true;
+
+            document.getElementById('upFile').value = "";
+          }else if(which == "newPdf"){
+            //契約書の新規登録
+            //alert("newPdf " + sct);
+            //新規追加なので
+            //dt=//[kin,start,finish,client,day,add,tan,gen,fileId,num,name];
+            const tbody = document.getElementById('keiyakuListT').querySelector('tbody');
+            const tr = document.createElement('tr');
+            const th = document.createElement('th');
+            const td2 = document.createElement('td');
+            const td3 = document.createElement('td');
+            const td4 = document.createElement('td');
+            const td5 = document.createElement('td');
+            th.textContent = dt[9];//No
+            td2.textContent = dt[10];//注文書名
+            td3.textContent = dt[0].toLocaleString();//金額
+            td4.textContent = dt[8];//fileId
+            td5.insertAdjacentHTML('afterbegin', '<input id="kei-' + dt[7] + '" type="button" value="OPEN" onclick="openFile(this.id)"/>')
+            tr.appendChild(th);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+            tr.appendChild(td4);
+            tr.appendChild(td5);
+            tbody.appendChild(tr);
+            // 不要な表示切り替えを省略（必要に応じて調整）
+            document.querySelector('.overlay4').style.display = "none";
+            document.getElementById('keiyakuListPane').hidden = false;
+            document.getElementById('upLoadPane').hidden = true;
+            document.getElementById('upInfoPane').hidden = true;
+            document.querySelector('.overlay4').style.display = "block";
+
+            document.getElementById('upFile').value = "";
+          }else if(which == "reziPdf"){
+            //parsedInfo [kin,start,finish,client,day,add,tan];
+            document.getElementById('info5').value = dt[0].toLocaleString();//金額
+            document.getElementById('info13').value = dt[1].toLocaleString();//着工
+            document.getElementById('info14').value = dt[2].toLocaleString();//完了
+            const client = document.getElementById('clientSct').value;
+            document.getElementById('info17').value = client;
+            document.getElementById('info24').value = dt[4];//発行日
+            document.getElementById('info15').value = dt[5];//住所
+            document.getElementById('info20').value = dt[6];//担当
+
+            //😃修正したPDFの契約書を登録した場合、すでに現場名等を登録してる場合はそちらを優先する
+            const genInpt = document.getElementById('genInpt').value;
+            const genmei = (genInpt == "")? dt[7]:genInpt;
+            document.getElementById('info3').value = genmei;//物件名
+            document.getElementById('info4').value = document.getElementById('kindInpt').value;
+
+            //フリガナ検索
+            const huriF = await new Promise((resolve, reject) => {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .huriganaApi(genmei);
+            });
+            
+            const huri = window.prompt("現場のフリガナはあってますか\n間違ってる場合は修正ください", huriF);
+            document.getElementById('huri').value = huri;
+            const ds = document.getElementById('dsSct').value;
+            document.getElementById('info2').value = ds;
+            getMail();//顧客担当者のメール取得を
+            //現場情報を現場登録用に変更する
+            changeGenRezi();//yosan-script-fileupにある
+            //取得内容を反映してモーダル解除
+            document.getElementById('upInfoPane').hidden = true;
+            document.getElementById('btPane').hidden = true;
+            document.getElementById('btPane2').hidden = false;
+            document.querySelector('.overlay4').style.display = "none";//ファイルUPLOADパネル
+            document.querySelector('.overlay5').style.display = "none";//現場登録初回パネル
+          }
+          document.getElementById('upFile').value = "";
+        }).onUpload2(upKeiyaku, file.name, file.type, fId, which, sct, resizedDataUrl,parsedInfo); 
+      }else if(which == "csvBt" || which == "csvRezi"){
+        //fileCounter++;
+        postCsvFile(file,which,upKeiyaku);
+      }
+    };
+    reader.readAsDataURL(file); // ← 忘れずに実行
+  }
+  //😃😃CSVの処理はこちらから
+  window.postCsvFile = function(file, which, upKeiyaku){
+    if (!file || file.type !== "text/csv") {
+      alert("CSVファイルを1つ選択してください");
+      return;
+    }
+    const reader = new FileReader();
+
+    reader.onloadend = function (e) {
+      const dataURL = e.target.result;
+      const base64 = dataURL.split(',')[1];
+
+      const ds = document.getElementById('info2').value || document.getElementById('dsSct').value;
+      const reziYobi = (which === "csvRezi") ? "rezi" : "yobi";
+      document.getElementById('reziYobi').value = reziYobi;
+
+      // 表示切替（読み込み中）
+      document.querySelector('.overlay4').style.display = "none";
+      document.getElementById('upInfoPane').hidden = true;
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+
+      // CSVファイルをGASへ送信・解析
+      google.script.run.withSuccessHandler(function (dt) {
+        const rn = dt.split(',');
+
+        if (rn[0] === "複数") {
+          const sctCsvTE = document.getElementById('sctCsvT');
+          const num = Number(rn[1]);
+          const last = num + 1;
+          const end = last + 1;
+          const tbody = document.createElement('tbody');
+
+          for (let i = 2; i < last + 2; i++) {
+            if (i === end) {
+              sctCsvTE.appendChild(tbody);
+              document.querySelector('.overlay4').style.display = "none";
+              document.getElementById('infoA').hidden = true;
+              document.getElementById('csvSctList').hidden = false;
+              document.querySelector('.overlay4').style.display = "block";
+            } else {
+              const tr = document.createElement('tr');
+              const th = document.createElement('th');
+              const td = document.createElement('td');
+              th.textContent = i - 1;
+              td.textContent = rn[i];
+              tr.appendChild(th);
+              tr.appendChild(td);
+              tbody.appendChild(tr);
+            }
+          }
+
+        } else {
+          csvReziOK(rn, reziYobi); // 1件のみの場合
+        }
+
+        document.getElementById('upFile').value = ""; // ファイル選択をリセット
+
+      }).getCSVdata(ds, upKeiyaku); // GAS側へ送信
+    };
+
+    reader.readAsDataURL(file); // CSVファイル読み込み開始
+  }
+
+  //😃upFileのDOMリセット
+  // function upFileReset(){
+  //   //upFile(アップロードを一旦削除して新しくする
+  //   const oldInput = document.getElementById('upFile');
+  //   const newInput = oldInput.cloneNode(true);
+  //   oldInput.parentNode.replaceChild(newInput, oldInput);
+
+  //   // イベントハンドラを再登録
+  //   newInput.addEventListener('change', function() {
+  //     selectFiles(files);
+  //   });
+  //   return "OK";
+  // }
+
+  //◆◆長谷工CSV内容反映
+  function csvReziOK(rn,reziYobi){
+    alert(rn);
+    //発注Noがまだ登録されてない場合
+    //発注Noの記録
+    const kin = rn[6];
+    const kinNo = kin + "円◇" + rn[0];
+    const hatyuNo = document.getElementById('info23').value;
+    if(reziYobi == "rezi"){
+      let ds = document.getElementById('dsSct').value;
+      document.getElementById('info2').value = ds;
+      document.getElementById('info3').value = rn[1];
+      // フリガナ取得
+      google.script.run
+        .withSuccessHandler(function(dt) {
+          // フリガナをユーザーに確認してもらう
+          const huri = window.prompt("現場のフリガナはあってますか\n間違ってる場合は修正ください", dt);
+          // 値を入力欄に反映
+          document.getElementById('huri').value = huri;
+        })
+        .withFailureHandler(function(error) {
+          alert("フリガナ取得に失敗しました\n" + error.message);
+        })
+        .huriganaApi(rn[1]); // rn[1]：現場名など
+
+      //フリガナの登録
+      //長谷工リフォーム選択
+      const client = document.getElementById('clientSct').value
+      const indexF = () => {
+        const clientE = document.getElementById('info17');
+        const last = clientE.childElementCount
+        for(let i=0; i<last; i++){
+          const options = clientE.options;
+          if(options[i].value == client){
+            return i;
+          }
+        }
+      }
+      const index = indexF();
+      document.getElementById('info17').selectedIndex = index;//長谷工選択
+
+      //データ反映
+      document.getElementById('info4').value = rn[2];//工事内容
+      document.getElementById('info15').value = rn[3];//住所
+      
+      document.getElementById('info5').value = kin.toLocaleString();//請負金額(別)
+      document.getElementById('info13').value = rn[4];//着工
+      document.getElementById('info14').value = rn[5];//完了
+      document.getElementById('info24').value = rn[7];//契約日
+
+      if(hatyuNo == ""){
+        document.getElementById('info23').value = kinNo;//発注No
+      }else{
+        val = hatyuNo + "," + kinNo;//カンマ区切りで
+        document.getElementById('info23').value = val;//発注No
+      }
+
+      document.getElementById('info20').value = rn[8];//元請担当者
+      document.getElementById('info21').value = rn[9];//元請メール
+
+      //モーダル閉じる
+      document.querySelector('.overlay4').style.display = "none";
+      document.getElementById('infoA').hidden = true;
+      //元請担当者のメールの登録がなかった場合
+      if(rn[9] == "なし"){
+        //メール登録のモーダル
+        document.querySelector('.overlay4').style.display = "block";
+        document.getElementById('mailReziPane').hidden = false;
+      }else{
+        alert("※　CSVを読み込みました　※\n\n【注意】内容変更で読み込まれた内容が反映されます");
+        changeGenRezi();//yosan-script-fileupにある
+        document.querySelector('.overlay4').style.display = "none";
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay5').style.display = "none";       
+        //upFileReset();//😃upFileのDOMをリセット
+        alert("続いて請求書PDFをアップロードください");
+        const e = "pdf1";
+        csvUpPaneOP(e);
+      }
+    }else{
+      if(hatyuNo == ""){
+        document.getElementById('info23').value = kinNo;//発注No
+      }else{
+        val = hatyuNo + "/" + kinNo;//カンマ区切りで
+        document.getElementById('info23').value = val;//発注No
+      }
+      document.querySelector('.overlay4').style.display = "none";
+      document.getElementById('infoA').hidden = true;
+    }
+  }
+
+  //◆◆アップロードパネルから戻る
+  function UpPaneBK(){
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('upLoadPane').hidden = true;
+  }
+
+  //csv複数ある場合のモーダルからの選択クリック
+  function sctCsv(){
+    const csvClickE = document.getElementById('csvClick');
+    const csvClick = csvClickE.value;//選択したテーブルRow
+    const sctCsvTE = document.getElementById('sctCsvT');
+    const sct = sctCsvTE.rows[csvClick].cells[1].textContent;
+    const val2 = sct.slice(sct.indexOf('◆') + 1);//登録用No
+    //alert(sct);
+    const reziYobi = document.getElementById('reziYobi').value;
+    //alert(reziYobi);
+    const hatyuNoE = document.getElementById('info23');
+    let hatyuNo = hatyuNoE.value;
+    //alert(hatyuNo);
+    const rn = hatyuNo.split(',');
+    const last = rn.length;
+    for(let i=0; i<last+1; i++){
+      if(i == last){
+        const msg = confirm(sct + '　のCSVを登録します');
+        if(msg == true){
+          const reziNo = sct.slice(sct.indexOf("◇") + 1);
+          const genE = document.getElementById('info3');
+          const gen = genE.value;
+
+          if(reziYobi == "rezi"){
+            google.script.run.withSuccessHandler(function(dt){
+              const rn = dt.split(',');
+              const reziYobi = document.getElementById('reziYobi').value;
+              csvReziOK(rn,reziYobi);
+            }).reziCsvGet(gen,reziNo);//◆注意◆コードgenToroku.gsにある
+          }else if(reziYobi == "yobi"){
+            if(hatyuNo == ""){
+              hatyuNoE.value = sct;
+            }else{
+              val1 = document.getElementById('info23').value;
+              // alert(val1);
+              // alert(val2);
+              val = val1 + "/" + val2;
+              //alert(val);
+              hatyuNoE.value = val;
+            }
+          }
+        }
+      }else if(rn[i] == val2){
+        alert("選択したCSVはすでに登録してるようです");
+        break;
+      }
+    }
+  }
+  //csvパネル閉じる（ｷｬﾝｾﾙ)
+  function sctCsvBK(){
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('csvSctList').hidden = true;
+    document.getElementById('sctCsvT').innerHTML = "";//テーブルクリア
+  }
+  //◆元請担当者のメールが登録してない場合のメール登録
+  function mailRezist(){
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('mailReziPane').hidden = true;
+    document.getElementById('infoA').hidden = false;
+
+    const mailReziE = document.getElementById('mailRezi');
+    const mailRezi = mailReziE.value;
+    const clientE = document.getElementById('info17');
+    const client = clientE.value;
+    const motoTanHE = document.getElementById('info20');
+    const motoTanH = motoTanHE.value;
+    const motoMailE = document.getElementById('info21');
+    //とりあえずメールは登録
+    motoMailE.value = mailRezi;
+
+    const name = motoTanH;
+    const mail = mailRezi;
+    const taiHase = "長谷工";
+    tanMail(name,mail,taiHase);//JS関数実行
+    document.querySelector('.overlay4').style.display = "none";
+    mailReziE.value = ""//メールインプットクリア
+    document.getElementById('tanName').innerText = "";
+    document.getElementById('infoA').hidden = true;
+    alert("ID発行をクリックして進めてください");
+  }
+  //◆◆元請のメール登録がないので登録
+  function tanMail(name,mail,taiHase){
+    google.script.run.reziMotoMail(name,mail,taiHase);
+  };
+  //◆◆工事完了報告書発行パネルオープン
+  function csvListOP(){
+    document.querySelector('.overlay4').style.display = "block";
+    document.getElementById('infoA').hidden = false;
+    document.getElementById('billOnePane').hidden = true;//😃New😃BillOne対応
+    const reziCsvTE = document.getElementById('reziCsvT');
+    const hatyuNo = document.getElementById('info23').value;
+    const rn = hatyuNo.split('/');
+    const last = rn.length;
+    const tbody = document.createElement('tbody');
+    for(let i=0; i<last+1; i++){
+      if(i == last){
+        reziCsvTE.appendChild(tbody);
+        document.querySelector('.overlay4').style.display = "none";
+        document.getElementById('infoA').hidden = true;
+        document.getElementById('csvList').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+      }else{
+        let tr = document.createElement('tr');
+        let th = document.createElement('th');
+        let td = document.createElement('td');
+        th.textContent = i + 1;
+        td.textContent = rn[i];
+        tr.appendChild(th);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+    }
+  }
+
+  //😃長谷工工事完了報告書発行
+  function koKanHoHakko(){
+    const hatyuNoE = document.getElementById('No');
+    const hatyuNo = hatyuNoE.value;
+    const ukeoiSAE = document.getElementById('ukeoiSA');
+    const ukeoiA = ukeoiSAE.value;
+    const ukeoi = ukeoiA.replace(/,/g, "");
+    const genmeiE = document.getElementById('genmei');
+    const genmei = genmeiE.value;
+    const kousyuE = document.getElementById('kousyu');
+    const kousyu = kousyuE.value;
+    const startE = document.getElementById('startA');
+    const start = startE.value;
+    const finishE = document.getElementById('finishA');
+    const finish = finishE.value;
+    const keiyakuE = document.getElementById('keiyakubi');
+    const keiyaku = keiyakuE.value;
+    const addE = document.getElementById('address');
+    const add = addE.value;
+    const tanE = document.getElementById('tanH');
+    const tan = tanE.value;
+    const mailE = document.getElementById('mailH');
+    const mail = mailE.value;
+    const tukiE = document.getElementById('tukiH');
+    const tuki = tukiE.value;
+    const telE = document.getElementById('telH');
+    const tel = telE.value;
+    const seibiE = document.getElementById('seibi');
+    const seibi = seibiE.value;
+    
+    if(seibi == ""){
+      alert("発行日が入力されてません");
+    }else{
+      const kanryoF = () => {
+        const msg = window.confirm("工期終わり：" + finish + "\n発行日：" +  seibi + "\n完了日は発行日でよろしいですか");
+        if(msg == true){
+          return seibi;
+        }else{
+          const kanbi = window.prompt("完了日を指定してください");
+          return kanbi;
+        }
+      }
+      const kanryo = kanryoF();
+     
+      const msg2 = window.confirm("物件名：" + genmei + kousyu + "\n請負金額：" + ukeoi + "\n完了日：" + kanryo + "\n発行日：" + seibi + "\n工事完了報告書を発行します");
+        if(msg2 == true){
+          google.script.run.hasekoKanHo(hatyuNo,ukeoi,genmei,kousyu,start,finish,keiyaku,add,tan,mail,tuki,kanryo,tel);
+          alert("工事完了報告書のメール下書きの準備が出来ましたらチャットを送信します");
+        }
+    }
+  }
+
+  //登録長谷工CSVリストを閉じる
+  function reziCsvBK(){
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('csvList').hidden = true;
+    document.getElementById('reziCsvT').innerHTML = "";
+  }
+</script>

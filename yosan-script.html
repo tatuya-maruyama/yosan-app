@@ -1,0 +1,494 @@
+<script>
+  //😃😃アクセス時のパスワード認証、内容変更、自社注文書発行😃顔
+  window.onload = function(){
+    google.script.url.getLocation(function(location){
+      const fId = location.parameter.param1;//fId
+      const access = location.parameter.param2;//access
+      const syaId = location.parameter.param3;//syaId
+      const pass = location.parameter.param4;//pass
+      document.getElementById('fId').value = fId;
+      document.getElementById('access').value = access;
+      document.getElementById('syaId').value = syaId;
+      document.getElementById('pass').value = pass;
+      const clientSctE = document.getElementById('clientSct');
+      if(fId == "rezi"){//新規登録
+        document.getElementById('infoA').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+        google.script.run.withSuccessHandler(function(dt){
+          if (dt == "NG") {
+            alert("◆◇ERROR\n有効期間が切れてる恐れがあります");
+            return;
+          }
+          const data = JSON.parse(dt);//担当者リスト、顧客リスト、登録者名を戻す
+
+          // 担当者リスト
+          const info16E = document.getElementById('info16');
+          info16E.innerHTML = "";
+          const optionC = new Option("選択","選択");
+          info16E.appendChild(optionC);
+          data.nameList.forEach(val => {
+            const option = new Option(val, val);
+            info16E.appendChild(option);
+            if (val === data.selectedTanto) info16E.value = val
+          });
+
+          // 顧客リスト
+          const info17E = document.getElementById('info17');
+          info17E.innerHTML = "";
+          const optionA = new Option("選択","選択");
+          info17E.appendChild(optionA);
+          data.kokyakuList.forEach(val => {
+            const option = new Option(val, val);
+            info17E.appendChild(option);
+          });
+          clientSctE.innerHTML = "";//新規登録用顧客セレクト
+          const optionB = new Option("選択","選択");
+          clientSctE.appendChild(optionB);
+          data.kokyakuList.forEach(val => {
+            const option = new Option(val, val);
+            clientSctE.appendChild(option);
+          });
+          document.getElementById('info25').value = data.rezistant;
+          document.getElementById('nendoInpt').value = data.nendo;
+
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay5').style.display = "block";
+  
+        }).passKaku(fId,access,syaId,pass);
+      }else{
+        //パスワード確認
+        document.getElementById('infoA').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+        //権限設定
+        kankaku(syaId, pass)//特定のIDとパスが合うOK
+        google.script.run.withSuccessHandler(function(dt) {
+          if (dt === "NG") {
+            alert("◆◇ERROR\n有効期間が切れてる恐れがあります");
+            return;
+          }
+          const data = JSON.parse(dt);  // JSONをオブジェクト化
+
+          document.getElementById('genbamei').innerText = data.info[7] + " 現場情報";
+          // info0〜infoNに反映
+          document.getElementById('info0').value = data.info[0];//id
+          document.getElementById('info1').value = data.info[1];//状態
+          document.getElementById('info2').value = data.info[2];//DS
+          document.getElementById('info3').value = data.info[7];//現場
+          document.getElementById('info4').value = data.info[8];//工事内容
+          document.getElementById('info5').value = data.info[9].toLocaleString();//請負金額
+          document.getElementById('info6').value = data.info[10].toLocaleString();//予算
+          document.getElementById('info7').value = data.info[11].toLocaleString();//売上
+          document.getElementById('info8').value = data.info[12].toLocaleString();//支払い
+          const val = data.info[13] * 100;
+          document.getElementById('info9').value = Math.round(val) + "％";;//設定粗利
+          const val2 = data.info[14] * 100;
+          document.getElementById('info10').value = Math.round(val2) + "％";;//実施粗利
+          const val3 = data.info[15];
+          document.getElementById('info11').value = Math.round(val3).toLocaleString();;//月粗利
+          document.getElementById('info12').value = data.info[16];//期間
+          document.getElementById('info13').value = data.info[17];//着工
+          document.getElementById('info14').value = data.info[18];//完了
+          document.getElementById('info15').value = data.info[19];//住所
+
+          // 担当者リスト
+          const info16E = document.getElementById('info16');
+          info16E.innerHTML = "";
+          data.nameList.forEach(val => {
+            const option = new Option(val, val);
+            info16E.appendChild(option);
+            if (val === data.selectedTanto) info16E.value = val
+          });
+
+          // 顧客リスト
+          const info17E = document.getElementById('info17');
+          info17E.innerHTML = "";
+          data.kokyakuList.forEach(val => {
+            const option = new Option(val, val);
+            info17E.appendChild(option);
+            if (val === data.selectedKokyaku) info17E.value = val;
+          });
+
+          // その他情報
+          document.getElementById('info18').value = data.otherFields.seikyukanryo;
+          document.getElementById('info19').value = data.otherFields.memo;
+          document.getElementById('info20').value = data.otherFields.mototan;
+          document.getElementById('info21').value = data.otherFields.tantoMail;
+          document.getElementById('info22').value = data.otherFields.gyomu;
+          document.getElementById('info23').value = data.otherFields.haseko;
+          const keiyakubiF = () => {
+            if(data.otherFields.keiyaku == ""){
+              return "";
+            }else{
+              return data.otherFields.keiyaku;
+            }
+          }
+          const keiyakubi = keiyakubiF();
+          document.getElementById('info24').value = keiyakubi;
+          document.getElementById('info25').value = data.toroku;
+          document.getElementById('info26').value = data.chatUrl;
+
+          document.getElementById('nendo').value = data.nendo;//現在の年度を記録
+
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('ds').value = data.ds;
+        }).passKaku(fId, access, syaId, pass); 
+      }
+    })
+  }
+  //権限の確認 社員IDとパスワード
+  function kankaku(id, p) {//権限ジャッジ
+    const syaIdF = () => id || document.getElementById('syaId').value;
+    const passF = () => p || document.getElementById('pass').value;
+
+    const syaId = syaIdF();
+    const pass = passF();
+
+    google.script.run.withSuccessHandler(function(dt) {
+      document.getElementById('kengen').value = dt;//権限を記録
+      if (dt === "OK") {
+        document.getElementById('info16').disabled = false;
+        document.getElementById('info17').disabled = false;
+
+        // ボタン解除
+        document.getElementById('genHenBt').hidden = false;
+        document.getElementById('tyumonBt').hidden = false;
+        document.getElementById('csvBt').disabled = false;
+        document.getElementById('csvBt2').disabled = false;
+        document.getElementById('climeBt').hidden = false;
+        document.getElementById('keiUpBt').hidden = false;
+
+        document.getElementById('info26').readOnly = false;//チャットURL
+
+        // readOnly解除
+        for (let i = 0; i <= 24; i++) {
+          if(i == 7 ||i == 8 ||i == 9 ||i == 10 ||i == 11 ||i == 12){
+
+          }else{
+            const el = document.getElementById(`info${i}`);
+            if (el) el.readOnly = false;
+          }
+        }
+      }
+    }).kenkakuA(syaId, pass);
+  }
+  //◆◆計算用式対応＆３桁カンマにする
+  function calCam(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    let val = el.value.trim();
+
+    // カンマ削除（1,000 → 1000）
+    val = val.replace(/,/g, "");
+
+    try {
+      // 数式評価（例：1000 / 1.1）
+      const result = math.evaluate(val);
+
+      if (isNaN(result)) {
+        el.value = "無効な数式";
+        return;
+      }
+
+      // 3桁カンマ + 小数第2位まで
+      el.value = Number(result).toLocaleString("ja-JP", {
+        maximumFractionDigits: 2
+      });
+
+    } catch (e) {
+      el.value = "計算エラー";
+      console.error("式の解析エラー:", e);
+    }
+  }
+
+  //◆◆内容変更ボタンクリック
+  function genHen() {
+  const msg = window.confirm("現場の内容の変更を実行します。よろしいですか？");
+
+  const comma3 = (e) => {
+    if (e.indexOf(',') == -1) {
+      return e;
+    } else {
+      const f = e.replace(/,/g, "");
+      return f;
+    }
+  };
+
+  if (msg == true) {
+    document.querySelector('.overlay4').style.display = 'block';
+    document.getElementById('infoA').hidden = false;
+
+    const fId = document.getElementById('fId').value;
+    const ds = document.getElementById('ds').value;
+
+    // JSONで送る
+    const data = {
+      fId: fId,
+      ds: ds,
+      gen: document.getElementById('info3').value,
+      naiyo: document.getElementById('info4').value,
+      uke: Number(comma3(document.getElementById('info5').value)),
+      st: document.getElementById('info13').value,
+      fn: document.getElementById('info14').value,
+      add: document.getElementById('info15').value,
+      tan: document.getElementById('info16').value,
+      client: document.getElementById('info17').value,
+      memo: document.getElementById('info19').value,  
+      motoTan: document.getElementById('info20').value,
+      mMail: document.getElementById('info21').value,
+      csv: document.getElementById('info23').value,
+      keiyaku: document.getElementById('info24').value,
+      chatUrl: document.getElementById('info26').value 
+    };
+
+    const json = JSON.stringify(data);
+
+    google.script.run
+      .withFailureHandler(function (er) {
+        alert("◆◇ERROR\n予算書アプリ⇒genInfoHen()\n" + er.message);
+      })
+      .withSuccessHandler(function (dt) {
+        if (dt == "OK") {
+          alert("登録内容を変更しました");
+          document.querySelector('.overlay4').style.display = 'none';
+          document.getElementById('infoA').hidden = true;
+        } else {
+          alert("エラーが発生しています。\n管理者に確認してください。\n" + dt);
+        }
+      })
+      .genInfoHen(json);
+  }
+}
+
+//発注管理へ
+async function hatyuKan(){
+  document.getElementById('infoA').hidden = false;
+  document.querySelector('.overlay4').style.display = "block";
+  const fId = document.getElementById('fId').value;
+  const access = document.getElementById('access').value;
+  const syaId = document.getElementById('syaId').value;
+  const pass = document.getElementById('pass').value;
+  const ds = document.getElementById('ds').value;
+  const urlA = await new Promise((res) => {
+    google.script.run.withSuccessHandler(res).getSetUrl("予算書アプリ");
+  })
+  const url = urlA + "?page=pane&param1=" + fId + "&param2=" + ds + "&param3=" + pass + "&param4=" + syaId + "&param5=" + access; 
+  window.top.location.href = url;
+}
+
+//😃自社注文書の発行関係
+function tyumonPane(){
+  // document.getElementById('infoA').hidden = false;
+  // document.querySelector('.overlay4').style.display = "block";
+  const client = document.getElementById('info17').value;
+  if(client == "選択"){
+    alert("顧客を選択してください");
+  }else{
+    document.getElementById('gen').value = document.getElementById('info3').value;
+    document.getElementById('naiyo').value = document.getElementById('info4').value;
+    document.getElementById('uke').value = document.getElementById('info5').value;
+    document.getElementById('start').value = document.getElementById('info13').value;
+    document.getElementById('finish').value = document.getElementById('info14').value;
+    document.getElementById('client').value = client;
+
+    document.getElementById('tyomonPane').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    alert("内容を確認して、実行ください");
+  }
+}
+function tyumonBK(){
+  document.querySelector('.overlay4').style.display = "none";
+  document.getElementById('tyomonPane').hidden = true;
+}
+//🔸🔸注文書パネルの発行日、本日ボタン
+function honzitu(){//もう１回押すと".    年　　月　　日”に戻す
+  const dayA = document.getElementById('day').value;
+  if(dayA == "　　　　年　　月　　日"){
+    const now = new Date();
+    const nen = now.getFullYear();
+    const getu = now.getMonth() + 1;
+    const niti = now.getDate();
+    const day = nen + "年" + getu + "月" + niti + "日";
+    document.getElementById('day').value = day;
+  }else{
+    document.getElementById('day').value = "　　　　年　　月　　日";
+  }
+}
+
+//◆◆注文書（自社物件）発行（作成）
+  function tyumon(){
+    const dayE = document.getElementById('day');
+    const day = dayE.value;
+    const idE = document.getElementById('info0');
+    const id = idE.value;
+    const genE = document.getElementById('gen');
+    const gen = genE.value;
+    const naiyoE = document.getElementById('naiyo');
+    const naiyo = naiyoE.value;
+    const ukeE = document.getElementById('uke');
+    const uke = ukeE.value;
+    const termsE = document.getElementById('terms');
+    const terms = termsE.value;
+    const startE = document.getElementById('start');
+    const start = startE.value;
+    const finishE = document.getElementById('finish');
+    const finish = finishE.value;
+    const clientE = document.getElementById('client');
+    const client = clientE.value;
+    const syomeiE = document.getElementById('syomei');
+    const syomei = syomeiE.value;
+    const dsE = document.getElementById('ds');
+    const ds = dsE.value;
+    const addE = document.getElementById('info15');
+    const add = addE.value;
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    const keiyakuSctE = document.getElementById('keiyakuSct');
+    const keiyakuSct = keiyakuSctE.value;
+
+    if(keiyakuSct == "選択"){
+      alert("契約書の種類（契約・変更・追加）を選択してください");
+    }else{
+      let msg = window.confirm('注文書の作成を開始します');
+      if(msg == true){
+      
+        msg = window.confirm('注文請書作成に入ります\n\n発行日：' + day + "\n物件名+工事内容：" + gen + naiyo + "\n金額（税抜き):" + uke + "\n支払条件：" + terms + "\n着工：" + start + "\n完了：" + finish + "\n顧客：" + client + "\n署名部分：" + syomei + "\n契約識別：" + keiyakuSct);
+
+        if(msg == true){
+          alert("準備が出来ましたらチャットでお知らせいたします");
+          google.script.run
+          .withFailureHandler(function(er){
+            alert('◆◇ERROR\n' + er.message);
+          }).tyumonUke(day,id,gen,naiyo,uke,terms,start,finish,client,syomei,ds,add,fId,keiyakuSct); 
+        }else{
+          alert('中止しました');
+        }
+      }
+    }
+  }
+  //🔸🔸契約書リストオープン
+  function keiyakuListOpen(){
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    google.script.run.withSuccessHandler(function(dt){
+      const keiyakuListTE = document.getElementById('keiyakuListT');
+      const data = JSON.parse(dt);
+      const last = Number(data.list[0][0]);
+
+      // 古いtbody削除
+      const oldTbody = keiyakuListTE.querySelector('tbody');
+      if (oldTbody) keiyakuListTE.removeChild(oldTbody);
+
+      const tbody = document.createElement('tbody');
+
+      for(let i = 0; i <= last; i++){
+        const tr = document.createElement('tr');
+        if(i == 0){
+          const ar = ["No", "注文書", "金額", "fileId",""];
+          for(let a=0; a<ar.length; a++){
+            const th = document.createElement('th');
+            th.textContent = ar[a];
+            tr.appendChild(th);
+            if(a == 3){
+              th.hidden = true;
+            }
+          }
+        }else{
+          const th1 = document.createElement('th');
+          const td2 = document.createElement('td');
+          const td3 = document.createElement('td');
+          const td4 = document.createElement('td');
+          const td5 = document.createElement('td');
+          th1.textContent = i;
+          td2.textContent = data.list[i][0];
+          td3.textContent = data.list[i][1].toLocaleString();
+          td3.style.textAlign = "right";
+          td4.textContent = data.list[i][2];
+          td5.insertAdjacentHTML('afterbegin', '<input id="kei-' + i + '" type="button" value="OPEN" onclick="openFile(this.id)"/>');
+          td4.hidden = true;
+          tr.appendChild(th1);
+          tr.appendChild(td2);
+          tr.appendChild(td3);
+          tr.appendChild(td4);
+          tr.appendChild(td5);
+        }
+        tbody.appendChild(tr);
+      }
+
+      keiyakuListTE.appendChild(tbody);
+      document.querySelector('.overlay4').style.display = "none";
+      document.getElementById('infoA').hidden = true;
+      document.getElementById('keiyakuListPane').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+    }).getKeiyakuList(fId);
+  }
+  //🔸🔸契約書リストパネルを閉じる
+  function keiListBK(){
+    document.getElementById('keiyakuListPane').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('keiyakuListT').innerHTML = "";
+  }
+  //🔸🔸契約書PDFを開く
+  function openFile(id){
+    const index = Number(id.slice(4));
+    const keiyakuListTE = document.getElementById('keiyakuListT');
+    const fileId = keiyakuListTE.rows[index].cells[3].textContent
+    const kengen = document.getElementById('kengen').value;//権限があるかないか
+    //alert("権限" + kengen);
+    if(fileId == ""){
+      alert("ファイルが登録されてません");
+      //ファイル登録へ
+      if(kengen == "OK"){
+        const msg = window.confirm("ファイルを登録しますか");
+        if(msg == true){
+          const e = "pdfBt";
+          document.getElementById('sct').value = index;
+          csvUpPaneOP(e);
+        }
+      }
+    }else{
+      const msg = window.confirm("登録されたファイルを開きますか")
+      if(msg == true){
+        const url = "https://drive.google.com/file/d/" + fileId + "/view";
+        window.open(url, '_blank');
+      }else{
+        if(kengen == "OK"){
+           const msg = window.confirm("【登録変更】\n登録したファイルを変更しますか");
+          if(msg == true){
+            const e = "pdfBt";
+            document.getElementById('sct').value = index;
+            csvUpPaneOP(e);//長谷工csv,契約書PDF、新規契約書登録共通、引数で判断する
+          }
+        }
+      }
+    }
+  }
+  //🔸🔸契約書新規登録
+  function keiUpload(){
+    const msg = window.confirm("新しく契約書を登録しますか（追加契約）");
+    if(msg == true){
+      const e = "newPdf";
+      csvUpPaneOP(e);
+    }
+  }
+
+  //😃スプレットシートOPENクリック
+  function spOpen(){
+    const fId = document.getElementById('fId').value;
+    if (!fId) return alert("スプレッドシートIDがありません");
+
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+
+    const url = "https://docs.google.com/spreadsheets/d/" + fId + "/edit";
+    window.open(url, '_blank', 'noopener,noreferrer');
+
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  }
+
+</script>

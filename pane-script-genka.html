@@ -1,0 +1,36 @@
+<script>
+  //😃原価設定パネルオープン
+  function genka(){
+    document.querySelector('.overlay5').style.display = "block";
+    document.getElementById('genkaPane').hidden = false;
+  }
+  //原価設定パネル閉じる
+  function genkaBK(){
+    //alert("キャンセル")
+    document.querySelector('.overlay5').style.display = "none";
+    document.getElementById('genkaPane').hidden = true;
+  }
+  //😃😃原価設定開始
+  function setting(){
+    const arariE = document.getElementById('arari');
+    const arari = arariE.value;
+    const msg = window.confirm("原価設定を開始します\n" + "設定：" + arari + "%" + "\n【注意】現在の原価は変更されますがよろしいでしょうか");
+    if(msg){
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      const fIdE = document.getElementById('fId');
+      const fId = fIdE.value;
+      google.script.run.withFailureHandler(function(er){
+        alert("◇◆ERROR\n" + er.message);
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+      }).withSuccessHandler(function(dt){
+        if(dt == "OK"){
+          alert("原単価設定に成功しました");
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }
+      }).arariSet(fId,arari);
+    }
+  }
+</script>

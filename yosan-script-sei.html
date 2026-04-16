@@ -1,0 +1,1331 @@
+<script>
+//😃😃請求書発行関係😃😃😃😃請求書発行関係😃😃😃😃請求書発行関係😃😃😃😃請求書発行関係😃😃😃😃請求書発行関係😃😃
+//◆◆◆◆支払い状況取得◆◆◆◆
+  function getPayment(){
+    //元請が選択されてないと請求時にエラーになるので確認
+    const moto = document.getElementById('info17').value;
+    const tan = document.getElementById('info20').value;
+    if(moto == "選択"){
+      alert("元請が選択されてません");
+    }else{
+      const judgeF = () => {
+        if(tan == ""){
+          const msg = confirm("元請担当者名が登録してありませんOKですか\n大成の請求または長谷工の報告書作成する場合エラーになる可能性があります");
+          if(msg == true){
+            return "OK";
+          }else{
+            return "NG";
+          }
+        }else{
+          return "OK";
+        }
+      };
+      const judge = judgeF();
+      if(judge == "OK"){
+        const accessE = document.getElementById('access');
+        const access = accessE.value;
+        document.querySelector('.overlay3').style.display = "block";
+        const info2E = document.getElementById('info2');
+        const ds = info2E.value;//D/S
+
+        const fIdE = document.getElementById('fId');
+        const id = fIdE.value;
+        //alert(id);
+        const payTableE = document.getElementById('payTable');
+        payTableE.innerHTML = "";
+        document.getElementById("climePane").hidden = true;//請求パネル閉じる
+        document.getElementById("dekiS").value = ""//出来高入力リセット
+        document.getElementById('seiS').value = ""//請求のリセット
+        
+        //読み込み中
+        document.querySelector('.overlay4').style.display = "block";
+        document.getElementById('infoA').hidden = false;
+        //現場名記録
+        const info3E = document.getElementById('info3');
+        const genName = info3E.value;
+        document.getElementById('genName').innerText = genName;
+        google.script.run.withSuccessHandler(function(dt){
+          //alert(dt);
+          if(dt == "NG"){
+            alert('台帳記録のIDのファイルの現場名が違う可能性があります\nシステム管理者に確認ください');
+          }else if(dt == "NGアクセス"){
+            document.querySelector('.overlay4').style.display = "block";
+            document.getElementById('infoB').hidden = false;
+          }else{
+            //業者支払い管理反映
+            const data = JSON.parse(dt);
+            const tbody = document.createElement('tbody');
+            // 業者支払い管理反映
+            const last = data.gyoKanri[0][0];
+            //alert(last);
+            for (let i = 1; i <= last; i++) {
+              const tr = document.createElement('tr');
+              const th = document.createElement('th');
+              th.textContent = (i == 1) ? "No" : i - 1;
+              tr.appendChild(th);
+              for (let s = 0; s <= 16; s++) {
+                const td = (i == 1 || s == 0 || s == 1) ? document.createElement('th') : document.createElement('td');
+                if(i == 1 || s == 0 || s == 1){
+                  td.textContent = data.gyoKanri[i][s];
+                }else{
+                  td.textContent = data.gyoKanri[i][s].toLocaleString();
+                }
+                tr.appendChild(td);
+              }
+              tbody.appendChild(tr);
+            }
+            // 請求履歴反映
+            const last2 = data.seikyu[0][0];
+            for (let t = 1; t <= last2; t++) {
+              const tr2 = document.createElement('tr');
+              const th = document.createElement('th');
+              th.textContent = (t == 1) ? "★" : t - 1;
+              tr2.appendChild(th);
+              if(data.seikyu[t][0] == "注文書1（本工事）"){
+                const index = last + t - 1;
+                const num = last2 - 2;//注文書の数
+                const rec = index + "," + num;//indexは本工事のtableのindex、last2は契約書の数になる
+                document.getElementById('honSei').value = rec;
+              }
+              for (let m = 0; m <= 16; m++) {
+                const td = (t == 1) ? document.createElement('th') : document.createElement('td');
+                td.textContent = data.seikyu[t][m].toLocaleString();
+                tr2.appendChild(td);
+              }
+              tbody.appendChild(tr2);
+            }
+            // 最後にまとめてセット
+            payTableE.appendChild(tbody);
+            
+            const dataGen = data.gen;
+            document.getElementById('genS').value = dataGen;
+            if(genName !== dataGen){//万が一データの現場名があってなかった場合
+              alert("戻されたデータの現場名が違う可能性があります\n" + "戻り値の現場名：" + dataGen);
+              document.getElementById('genName').innerText = dataGen + "【注意データの現場名】";
+              document.getElementById('genS').value = "【注意】データの現場名が違います登録しないでください";
+            } 
+            document.querySelector('.overlay4').style.display = "none";
+            document.getElementById('infoA').hidden = true;
+          }
+        }).getPay(id, ds, access, genName);
+      }
+    }
+  }
+  //◆◆◆支払い状況から戻る◆◆◆
+  function backPay(){
+    document.querySelector('.overlay3').style.display = "none";
+    document.getElementById('payTable').innerHTML = "";
+  }
+  //◆◆請求登録◆◆請求登録◆◆請求登録◆◆請求登録◆◆請求登録◆◆請求登録
+  //◆請求登録パネルオープンクリック
+  function climePaneOP(){
+    document.getElementById('reziSeiBt').disabled = false;//登録ボタン解除（前登録時にdisableしてる）
+    const honSei = document.getElementById('honSei').value.split(',');
+    const row = Number(honSei[0]);
+    const seiNum = Number(honSei[1]);
+    document.getElementById('honRow').value = row;//本契約の金額ROW
+    document.getElementById('setRow').value = row;//現在の選択金額ROW
+    document.getElementById('seiNum').value = seiNum;
+    //契約書反映用関数を作成
+    keiyakuHen(row);
+  }
+  //ROWに合わせて内容を変更する（請求処理パネル）
+  function keiyakuHen(row){
+    const payTableE = document.getElementById('payTable');
+    document.getElementById('keiyaku').textContent = payTableE.rows[row].cells[1].textContent;
+    //alert(row);
+    const ukekin = payTableE.rows[row].cells[2].textContent;//請負金額
+    const zenmade = payTableE.rows[row].cells[4].textContent;//前回まで請求
+    const ukeN = Number(ukekin.replace(/,/g, "")) * 1.1;//税込みにする
+    const ukeKomi = ukeN.toLocaleString();
+    document.getElementById('ukeoiS').value = ukeKomi;
+
+    const tuki = new Date().getMonth();//月セレクトは0からになってるのでそのまま
+    //alert(tuki);
+    document.getElementById('tukiS').selectedIndex = tuki;
+    //セレクトした月に請求金額がある場合はその金額を前回迄請求から引いておく必要がある
+    const tukiA = tuki + 1;
+    const sctSei = sctSeiF(tukiA,row);//【関数】セレクトした月の請求金額を返す（数字）
+    //alert(sctSei);
+    //％の計算
+    const zenmadeN = (Number(zenmade.replace(/,/g, "")) * 1.1) - sctSei;//セレクトした月の請求金額を引く(税込みにする)
+    const made3 = zenmadeN.toLocaleString();
+    document.getElementById('madeS').value = made3;
+    const zanN = ukeN - zenmadeN;
+    document.getElementById('zanS').value = zanN.toLocaleString();
+    //初期値出来高は前回までの金額する
+    document.getElementById('dekiS').value = made3;
+
+    const pa = Math.round(zenmadeN / ukeN * 100 * 10) / 10;
+    document.getElementById('dekipaS').value = pa;
+    document.getElementById('motoPa').value = pa;
+    document.getElementById('dekiPInfo').innerText = "出来高%(元%:" + pa + ")";//元％を記録しておく
+    const memo = document.getElementById('info19').value;
+    document.getElementById('memoS').value = memo;//メモ
+    const ds = document.getElementById('info2').value;//DSにより請求の種類（出来高、請求済）セレクトチェンジ
+    document.getElementById('kindsS').selectedIndex = 0;
+    document.getElementById("climePane").hidden = false;//請求登録パネル開く
+    document.getElementById('reziSeiBt').scrollIntoView({behavior: 'smooth'});
+
+    //セレクト契約番号を記録
+    const honRow = Number(document.getElementById('honRow').value);
+    const sct = row - honRow + 1;//本契約が１ rowはsctRow
+    document.getElementById('sct').value = sct;
+  }
+  
+  //関数】セレクトした月の請求金額を返す（数字）
+  function sctSeiF(tuki,row){//税込みで返す必要がある
+    //alert(tuki)
+    const ds = document.getElementById('info2').value;
+    const payTableE = document.getElementById('payTable');
+    if(ds == "D" || ds == "S2"){
+      c = tuki + 5;
+      //alert(c);
+      tS = payTableE.rows[row].cells[c].textContent;
+      //alert(tS);
+      num = Number(tS.replace(/,/g, ""));
+      //alert(num);
+      return num * 1.1;
+    }else if(ds == "S"){
+      if(tuki > 9){
+        c = tuki - 4;
+        tS = payTableE.rows[row].cells[c].textContent;
+        num = Number(tS.replace(/,/g, ""));
+        return num * 1.1;
+      }else{
+        c = tuki + 8;
+        tS = payTableE.rows[row].cells[c].textContent;
+        num = Number(tS.replace(/,/g, ""));
+        return num * 1.1;
+      }
+    }
+  }
+  //セレクト月をオンチェンジ
+  function madeCal(){
+    //セレクトした月の請求金額を計算に入れないので前月迄と残金が変わる
+    const tukiS = document.getElementById('tukiS').value
+    const tuki = Number(tukiS);
+    const row = document.getElementById('setRow').value;
+    const sctSei = sctSeiF(tuki,row);//【関数】セレクトした月の請求金額を返す（数字）
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const madeSE = document.getElementById('madeS');
+    const zanSE = document.getElementById('zanS');
+    const ukeoiS = ukeoiSE.value;
+
+    const payTableE = document.getElementById('payTable');
+    const madeS = payTableE.rows[row].cells[4].textContent;//前回まで請求
+  
+    const ukeoiN = Number(ukeoiS.replace(/,/g, ""));//税込みにする
+    const madeN = Number(madeS.replace(/,/g, "")) * 1.1;//税込みにする
+    
+    //前月迄計算
+    const made = madeN - sctSei;
+    const made3 = made.toLocaleString();
+    madeSE.value = made3;
+    const pa = Math.round(made / ukeoiN * 100 * 10) / 10;
+    document.getElementById('dekipaS').value = pa;
+    document.getElementById('motoPa').value = pa;
+    document.getElementById('dekiPInfo').innerText = "出来高%(元%:" + pa + ")";//元％を記録しておく
+
+    //出来高のとこも変更
+    document.getElementById('dekiS').value = made3;//出来高も残金に変更する
+    //残金計算
+    const zan = ukeoiN - made;
+    const zan3 = zan.toLocaleString();
+    zanSE.value = zan3;
+    //alert(made3 + "," + zan3);
+    //月を変えたのでリセット
+    document.getElementById('seiS').value = "";
+  }
+
+  //◆請負金額を出来高金額に反映　ボタンクリック
+  function ukehan(){
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const dekiSE = document.getElementById('dekiS');
+    const ukeN = Number(ukeoiSE.value.replace(/,/g, ""));
+    dekiSE.value = ukeN;
+    document.getElementById('seiS').value = "";
+    dekiCal();
+  }
+  //🔸🔸契約書をチェンジする
+  function chageKeiyaku(){//1回クリックごとに変化させる※ここではROWはindexです
+    const honRow = Number(document.getElementById('honRow').value);//本契約の契約金額のROW
+    const setRowE = document.getElementById('setRow');
+    const setRow = Number(setRowE.value);//現在選択の契約金額のROW
+    const seiNum = Number(document.getElementById('seiNum').value);//工事の契約数
+    const last = honRow + seiNum - 1;
+    const rowF = () => {
+      let r = setRow + 1;
+      if(r > last){
+        return honRow;
+      }else{
+        return r;
+      }
+    }
+    const row = rowF();
+    setRowE.value = row;//変更したROWの記録
+    //変更処理
+    keiyakuHen(row)
+  }
+  //🔸🔸請求金額のreadonly解除
+  function seiSCancel(){
+    const seiSE = document.getElementById('seiS');
+    seiSE.readOnly = false;
+    alert('請求金額から入力できます');
+    seiSE.style.border = "2px solid  #4169e1";
+  }
+  //🔸🔸請求金額の変更onChange()
+  function seiSChange(){
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const ukeoiS = Number(ukeoiSE.value.replace(/,/g, ""));
+    const seiSE = document.getElementById('seiS');
+    const seiS = Number(calInpt(seiSE.value));//数式があれば計算する
+    console.log("🔸seiS" + seiS);
+    const dekiSE = document.getElementById('dekiS');
+    const dekiS = Number(dekiSE.value.replace(/,/g, ""));
+    const zanSE = document.getElementById('zanS');
+    const madeSE = document.getElementById('madeS');;
+    const madeS = Number(madeSE.value.replace(/,/g, ""));
+
+    if ([ukeoiS, seiS].some(v => isNaN(v))) {
+      alert("入力が正しくありません（数値のみ）");
+      return;
+    }
+
+    const dekiA = madeS + seiS;
+    //const madeA = ukeoiS - dekiA;前回までは変更しない
+    const pa = ukeoiS > 0 ? Math.round((dekiA / ukeoiS) * 1000) / 10 : 0;
+    const zan = ukeoiS - dekiA;
+
+    document.getElementById('seiS').value = seiS.toLocaleString();
+    document.getElementById('dekiS').value = dekiA.toLocaleString();
+    document.getElementById('zanS').value = zan.toLocaleString();
+    //document.getElementById('madeS').value = madeA.toLocaleString();//前回までは変更しない
+    document.getElementById('dekipaS').value = pa;
+
+    seiSE.readOnly = true;
+    seiSE.style.border = "";
+  }
+
+  //計算式を入力した場合の関数
+  function calInpt(num) {
+    try {
+      if (!num) return 0; // 空の場合は0
+      // カンマを除去
+      const cleaned = num.replace(/,/g, "");
+      // 自動で * を補完（例: "2(3+1)" → "2*(3+1)", "(3)(2)" → "(3)*(2)"）
+      const safeExpr = cleaned
+        .replace(/(\d+)(\()/g, "$1*(")
+        .replace(/(\))(\d|\()/g, "$1*$2");
+
+      // 計算を実行（Functionを安全に使う）
+      const result = Function('"use strict"; return (' + safeExpr + ')')();
+
+      // 数値でない結果の対処
+      if (isNaN(result)) return 0;
+
+      // 四捨五入して整数で返す
+      return Math.round(result);
+    } catch (e) {
+      console.error("計算エラー:", e);
+      return 0;
+    }
+  }
+
+
+  //◆出来高入力オンのチェンジ
+  function dekiCal(){
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const dekiSE = document.getElementById('dekiS');
+    const dekipaSE = document.getElementById('dekipaS');
+    const madeSE = document.getElementById('madeS');
+    const seiSE = document.getElementById('seiS');
+    const zanSE = document.getElementById('zanS');
+    const ukeoiS = ukeoiSE.value;
+    const deki = String(dekiSE.value);//入力
+    const dekipaS = dekipaSE.value;
+    const madeS = madeSE.value;
+    const seiS = seiSE.value;
+    const zanS = zanSE.value;
+    if(deki == ""){
+      alert("出来高金額を入力ください");
+      dekiSE.value = madeS;
+    }else{
+      const ukeN = Number(ukeoiS.replace(/,/g, ""));
+      const madeN = Number(madeS.replace(/,/g, ""));
+      let zanN = Number(zanS.replace(/,/g, ""));
+      //alert(deki);
+      const dekiN = calInpt(deki);//数式を計算する
+
+      const dekiJudgeF = () => {
+        if(dekiN > ukeN){//出来高が請負を超えてる場合
+          const q = window.confirm('出来高が請負金額を超えてますが続けますか');
+          if(q == true){//請負が0の場合がある（小規模）
+            return "OK";
+          }else{
+            alert("入力しなおしてください");
+            return "NG";
+          }
+          dekiSE.value = "";
+        }else if(madeN > dekiN){//出来高が前回まで以下の場合
+          const q2 = window.confirm('出来高が前回迄金額以下です\n続けますか');
+          if(q2 == true){
+            return "OK";
+          }else{
+            return "NG";
+          }
+        }else{
+          return "OK";
+        }  
+      }
+      const dekiJudge = dekiJudgeF();
+      //alert(dekiJudge);
+
+      if(dekiJudge =="NG"){
+        document.getElementById('dekiS').value = madeS;
+      }else{
+        document.getElementById('dekiS').value = Number(dekiN).toLocaleString();
+        //請求
+        const seiN = dekiN - madeN;
+        seiSE.value = seiN.toLocaleString();
+        //残金
+        zanN = ukeN - dekiN;
+        zanSE.value = zanN.toLocaleString();
+        //パーセントの計算
+        const pa = Math.round(dekiN / ukeN * 100 * 10) / 10;
+        dekipaSE.value = pa;
+      }
+    }
+    
+  }
+  //◆出来高（％）入力オンチェンジ
+  function paCal(){
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const dekiSE = document.getElementById('dekiS');
+    const dekipaSE = document.getElementById('dekipaS');
+    const madeSE = document.getElementById('madeS');
+    const seiSE = document.getElementById('seiS');
+    const zanSE = document.getElementById('zanS');
+    const ukeoiS = ukeoiSE.value;
+    const deki = dekiSE.value;//入力
+    const dekipaS = dekipaSE.value;
+    const madeS = madeSE.value;
+    const seiS = seiSE.value;
+    const zanS = zanSE.value;
+    const motoPa = document.getElementById('motoPa').value;//元％
+
+    const ukeN = Number(ukeoiS.replace(/,/g, ""));
+    const madeN = Number(madeS.replace(/,/g, ""));
+    let zanN = Number(zanS.replace(/,/g, ""));
+
+    let pa = Number(dekipaSE.value);
+    if(pa == ""){
+      alert("出来高％に数値を入力ください");
+    }else if(pa > 100 || pa < motoPa){
+      alert("出来高％に正しい数値を入力ください\n元%～100％");
+    }else{
+      //パーセントは小数第1位までに変形
+      pa = Math.round(pa * 10) / 10;
+      dekipaSE.value = pa;
+      const dekiN = Math.round(ukeN * pa / 100 / 100) * 100;
+      dekiSE.value = dekiN.toLocaleString();
+
+      //請求
+      const seiN = dekiN - madeN;
+      seiSE.value = seiN.toLocaleString();
+      //残金
+      zanN = ukeN - dekiN;
+      zanSE.value = zanN.toLocaleString();
+
+    }
+  }
+
+  //◆◆請求登録ボタンクリック
+  function reziSei(){
+    document.getElementById('reziSeiBt').disabled = true;
+
+    const genSE = document.getElementById('genS');
+    const genS = genSE.value;
+    const tukiSE = document.getElementById('tukiS');
+    const tukiS = tukiSE.value;
+    const kindsSE  = document.getElementById('kindsS');
+    const kindsS = kindsSE.value;
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const ukeoiS = ukeoiSE.value;
+    const dekiSE = document.getElementById('dekiS');
+    const dekiS = dekiSE.value;//入力
+    const dekipaSE = document.getElementById('dekipaS');
+    const dekipaS = dekipaSE.value;
+    const madeSE = document.getElementById('madeS');
+    const madeS = madeSE.value;
+    const seiSE = document.getElementById('seiS');
+    const seiS = seiSE.value;
+    const zanSE = document.getElementById('zanS');
+    const zanS = zanSE.value;
+    const memoSE = document.getElementById('memoS');
+    const memoS = memoSE.value;
+    
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    const info2E = document.getElementById('info2');
+    const ds = info2E.value;
+
+    const koueki = document.getElementById('info22').value;
+    const moto = document.getElementById('info17').value;
+    const nendo = document.getElementById('nendo').value;
+    //契約金額の選択ROW
+    const sctE = document.getElementById('sct');
+    const sct = sctE.value;
+
+    if(dekiS == ""){
+      alert("出来高金額をお願いします");
+      document.getElementById('reziSeiBt').disabled = false;
+    }else if(kindsS == "選択"){
+      alert("請求種類を選択ください");
+      document.getElementById('reziSeiBt').disabled = false;
+    }else if(koueki == "" && moto.indexOf("大成有楽不動産") !== -1){
+      alert('大成有楽不動産の場合、工事なのか役務なのかの選択が必要です\n戻って入力をしてください');
+    }else{
+      const ellength = document.getElementById('payTable').rows.length - 1; 
+      const reziTukiF = () => {//選択月にすでに請求登録がないか
+        if(ds == "D" || ds == "S2"){
+          t = Number(tukiS) + 5;
+          const val = payTable.rows[ellength].cells[t].textContent;
+          //alert(val);
+          if(val == 0){
+            return t;
+          }else{
+            const msg1 = window.confirm("選択した請求月にすでに登録がありますがよろしいですか")
+            if(msg1 == true){
+              return t;
+            }else{
+              return "NG";
+            }
+          }
+        }else if(ds == "S"){
+          t = Number(tukiS);//10月初めなので
+          if(t > 9){
+            tA = t - 4;
+            const val = payTable.rows[ellength].cells[tA].textContent;
+            if(val == 0){
+              return tA;
+            }else{
+              const msg2 = window.confirm("選択した請求月にすでに登録がありますがよろしいですか");
+              if(msg2 == true){
+                return tA;
+              }else{
+                return "NG";
+              }
+            }
+          }else{
+            tA = t + 8;
+            const val = payTable.rows[ellength].cells[tA].textContent;
+            if(val == 0){
+              return tA;
+            }else{
+              const msg2 = window.confirm("選択した請求月にすでに登録がありますがよろしいですか");
+              if(msg2 == true){
+                return tA;
+              }else{
+                return "NG";
+              }
+            }
+          }
+        }
+      }
+      const reziTuki = reziTukiF();
+      if(reziTuki !== "NG"){
+        const msg = window.confirm('請求登録月を確認ください\n' + "請求月：" + tukiS + "月");
+        if(msg == true){
+          //処理開始
+          document.querySelector('.overlay4').style.display = "block";
+          document.getElementById('infoA').hidden = false;
+          google.script.run.withSuccessHandler(function(dt){
+            if(dt == "OK"){
+              document.querySelector('.overlay4').style.display = "none";
+              document.getElementById('infoA').hidden = true;
+              const messege = "現場名：" + genS + " \n請負金額：" + ukeoiS + "円\n" + tukiS + "月分出来高：" + dekiS + "円（" + dekipaS + "％） - " + madeS + "円（前回迄請求）\n = " + seiS + "円（今月請求金額）\n請求後残金：" + zanS + "円"; 
+              document.querySelector('.overlay4').style.display = "block";
+              document.getElementById('infoC').hidden = false;
+              // ✅ includes を使えば「含まれているか」を正確に判定できます
+              if (moto.includes("長谷工リフォーム") || moto.includes("長谷工コミュニティ")) {
+                document.getElementById('haseSeiPane').hidden = false;
+              } else {
+                document.getElementById('haseSeiPane').hidden = true;
+              }
+              document.getElementById('copyPe').innerText = messege;
+              document.getElementById('payTable').rows[ellength].cells[reziTuki].textContent = seiS;//テーブルに請求金額を記録
+
+              //もし大成の役務請求の可能性がある場合は内訳スプリットシートボタン表示
+              const ke = document.getElementById('info22').value;
+              // こちらも同様
+              if (ke == "2" && moto.includes('大成有楽不動産')) {
+                document.getElementById('splitSheetBt').hidden = false;
+                alert('役務請求（大成）の場合は先に役務内訳を開いて入力をお願いします');
+              }
+            }else{
+              alert("--登録に失敗--\n\n" + dt);//dtは失敗メッセージ
+              document.querySelector('.overlay4').style.display = "none";
+              document.getElementById('infoA').hidden = true;
+            }
+          }).climeRezi(genS,tukiS,kindsS,ukeoiS,dekiS,madeS,seiS,zanS,memoS,fId,ds,nendo,sct);
+        }  
+      }
+    }
+  }
+  //😃😃出来高請求状況のコピーボタン
+  async function copiPe() {
+    const chatUrl = document.getElementById('info26').value;
+    const text = document.getElementById('copyPe').innerText;
+    const btn = document.getElementById("copiPeBt");
+
+    if (chatUrl == "") {
+      try {
+        await navigator.clipboard.writeText(text);
+        
+        const oldText = btn.value; // valueを取得
+        btn.value = "コピー完了！";
+        btn.style.backgroundColor = "#6c757d";
+        
+        setTimeout(() => {
+          btn.value = oldText; // valueを戻す
+          btn.style.backgroundColor = "#339966";
+        }, 2000);
+
+        alert("物件のチャットスペースURLが登録ないので\nクリップボードにコピーしました、ctl+Vで貼り付け投稿ください");
+        
+      } catch (err) {
+        console.error("コピーに失敗しました: ", err);
+        alert("コピーに失敗しました。");
+      }
+    } else {
+      // 送信確認
+      if (!confirm("物件チャットスペースに投稿しますか？")) return;
+
+      // ローダー表示
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      document.getElementById('infoC').hidden = true;
+
+      google.script.run
+        .withSuccessHandler(function(dt) {
+          // ローダーを隠す
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+
+          if (dt == "OK") {
+            alert("物件スペースへ投稿しました");
+          } else {
+            alert("送信エラー: " + dt);
+          }
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('infoA').hidden = true;
+          document.getElementById('infoC').hidden = false;
+          document.querySelector('.overlay4').style.display = "none";
+          alert("システムエラーが発生しました: " + err);
+        })
+        .sendBukkenSpace(chatUrl, text);
+    }
+  }
+
+  //◆◆コメントコピペ用モーダル閉じる
+  function infoClose(e){
+    //請求後の処理を大成の場合と長谷工の場合
+    const moto = document.getElementById('info17').value;//元請
+    const kindsS = document.getElementById('kindsS').value;
+    document.getElementById('splitSheetBt').hidden = true;//内訳OPENボタン隠す
+    if(!e){
+      if(moto == "大成有楽不動産株式会社 東京支店" || moto == "大成有楽不動産株式会社 千葉支店"){
+        const msg1 = window.confirm('大成有楽不動産の請求書発行しますか?');
+        if(msg1 == true){
+          //大成有楽不動産請求書発行処理
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoC').hidden = true;
+          document.getElementById('copyPe').innerText = "";
+          document.getElementById('infoA').hidden = false;
+          document.querySelector('.overlay4').style.display = "block";
+
+          document.getElementById('motoSct').value = "大成";
+          請求書発行();
+        }else{
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoC').hidden = true;
+          document.getElementById('copyPe').innerText = "";
+        }
+      }else if(moto == "株式会社長谷工リフォーム" && kindsS == "請求済"){//最終請求の場合
+        document.querySelector('.overlay4').style.display = "none";
+        document.getElementById('infoC').hidden = true;
+        document.getElementById('copyPe').innerText = "";
+        document.getElementById('billOnePane').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+
+      }else{
+        const msg = window.confirm('請求書を発行しますか(自社物件用)');
+        if(msg == true){
+          //自社物件請求書発行処理
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoC').hidden = true;
+          document.getElementById('copyPe').innerText = "";
+          document.getElementById('infoA').hidden = false;
+          document.querySelector('.overlay4').style.display = "block";
+          document.getElementById('motoSct').value = "自社";
+          請求書発行();
+          
+        }else{
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoC').hidden = true;
+          document.getElementById('copyPe').innerText = "";
+        }
+      }
+    }else if(e == "koKanhoBt"){//長谷工の報告書発行ボタンクリック→確認パネルオープン
+      document.getElementById('seikyuInfo').innerText = "◇長谷工工事完了報告書発行パネル◇";
+      document.querySelector('.overlay4').style.display = "none";
+      document.getElementById('csvList').hidden = true;
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+
+      const csvClick2 = document.getElementById('csvClick2').value;
+      const reziCsvTE2 = document.getElementById('reziCsvT');
+      const sct = reziCsvTE2.rows[csvClick2].cells[1].textContent;
+      const msg = window.confirm("選択：" + sct + "\n の工事完了報告書を発行しますか");
+      if(msg == true){
+        const genE = document.getElementById('info3');
+        const gen = genE.value;
+        const reziNo = sct.slice(sct.indexOf("◇") + 1);
+        alert(reziNo);
+        google.script.run.withSuccessHandler(function(dt){
+          //内容を取得し、発行日（完工日）の確認を行う
+          const rn = dt.split(',');
+          const hatyuNo = rn[0];
+          const ukeoi = rn[6].toLocaleString();
+          const genmei = rn[1];
+          const kousyu = rn[2];
+          const start = rn[4];
+          const finish = rn[5];
+          const keiyaku = rn[7];
+          const add = rn[3];
+          const tan = rn[8];
+          const mail = rn[9];
+          const tel = rn[10];
+          document.getElementById('No').value = hatyuNo;
+          document.getElementById('genmei').value = genmei;
+          document.getElementById('kousyu').value = kousyu;
+          document.getElementById('startA').value = start;
+          document.getElementById('finishA').value = finish;
+          document.getElementById('ukeoiSA').value = ukeoi;
+          //一部のtrを非表示にする
+          document.getElementById('tr1').hidden = true;
+          document.getElementById('tr2').hidden = true;
+          document.getElementById('tr3').hidden = true;
+          document.getElementById('tr4').hidden = true;
+
+
+          document.getElementById('keiyakubi').value = keiyaku;
+          document.getElementById('address').value = add;
+          document.getElementById('tanH').value = tan;
+          document.getElementById('mailH').value = mail;
+          document.getElementById('telH').value = tel;
+          const day = new Date();
+          const tuki = day.getMonth();//インデックスで取得
+          document.getElementById('tukiH').selectedIndex = tuki;
+          document.getElementById('seikyuPane').hidden = false;
+          document.getElementById('seiHakoBt').hidden = true;//請求書発行ボタン
+          document.getElementById('haseHokokuBt').hidden = false;//長谷工報告書ボタン
+          document.getElementById('haseko').hidden = false;
+          document.getElementById('taiseiT').hidden = true;
+          document.getElementById('zisyaT').hidden = true;
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+          document.querySelector('.overlay6').style.display = "block";
+
+          koKanHoHakko();//yosan-script-fileupにある
+        }).reziCsvGet(gen,reziNo);
+      }
+    }else if(e == "billClose"){//長谷工のBillOneパネルを閉じる
+      document.getElementById('billOnePane').hidden = true;
+      document.querySelector('.overlay4').style.display = "none";
+    }
+  }
+
+  //◆◆大成役務請求用スプレット開く（役務内訳書）
+  async function splitSheetOP(){
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "block";
+    google.script.run.withSuccessHandler(function(res){
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "none";
+      window.open(res);
+    }).getSSUrl("大成内訳");
+    
+  };
+
+  //◆請求書発行
+  async function 請求書発行(){
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('infoC').hidden = true;
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    document.getElementById('seiHakoBt').hidden = false;//請求書発行ボタン
+    document.getElementById('haseHokokuBt').hidden = true;//長谷工報告書ボタン
+
+    //契約書別の内容を読み込む
+    const sctE = document.getElementById('sct');
+    const sct = sctE.value;
+    const fIdE = document.getElementById('fId');
+    const fId = fIdE.value;
+    const info2E = document.getElementById('info2');
+    const ds = info2E.value;
+
+    //契約書PDFを登録時の内容を取得するのは、着工、完了
+    const keiyakuInfo = await new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(function(dt){
+        if(dt == "なし"){
+          resolve("なし");
+        }else{
+          const vals = dt.split("◆");
+          resolve(vals);
+        }
+      }).getKeiyakuInfo(fId,sct,ds);
+    });
+    let start, finish;
+    if (keiyakuInfo === "なし") {
+      start = document.getElementById('info13').value;
+      finish = document.getElementById('info14').value;
+    } else {
+      start = keiyakuInfo[1];
+      finish = keiyakuInfo[2];
+    }
+    //金額,着工,完了,発注元,発行日,住所,担当,物件名
+    //着工日の確認
+    document.getElementById('startA').value = start;
+    document.getElementById('motoSt').value = start;
+    document.getElementById('finishA').value = finish;
+    document.getElementById('motoFn').value = finish;
+    document.getElementById('henSt').value = "なし";
+    document.getElementById('henFn').value = "なし";
+
+    const motoSct = document.getElementById('motoSct').value;
+    if(motoSct == "大成"){
+      document.getElementById('seikyuInfo').innerText = "◆◆大成有楽不動産請求発行パネル";
+      document.getElementById('taiseiT').hidden = false;
+      document.getElementById('zisyaT').hidden = true;
+    }else if(motoSct == "自社" || motoSct == "billOne"){
+      document.getElementById('seikyuInfo').innerText = "◆◆自社請求発行パネル";
+      document.getElementById('taiseiT').hidden = true;
+      document.getElementById('zisyaT').hidden = false;
+    }
+
+    const genSE = document.getElementById('genS');
+    const genS = genSE.value;
+    const ukeoiSE = document.getElementById('ukeoiS');
+    const ukeoiS = ukeoiSE.value;
+    document.getElementById('ukeoiSA').value = ukeoiS;
+    const dekiSE = document.getElementById('dekiS');
+    const dekiS = dekiSE.value;//入力
+    document.getElementById('dekiSA').value = dekiS;
+    const madeSE = document.getElementById('madeS');
+    const madeS = madeSE.value;
+    document.getElementById('madeSA').value = madeS;
+    const seiSE = document.getElementById('seiS');
+    const seiS = seiSE.value;
+    document.getElementById('seiSA').value = seiS;
+    const zanSE = document.getElementById('zanS');
+    const zanS = zanSE.value;
+    document.getElementById('zanSA').value = zanS;
+
+    //現場名が小規模の場合余計なのがついてる
+    const genmeiF = () => {
+      if(ds == "S" || ds == "S2"){
+        g = genS.slice(0,genS.indexOf(" "));
+        return g;
+      }else if(ds == "D"){
+        return genS; 
+      }
+    }
+    const genmei = genmeiF();
+    document.getElementById('genmei').value = genmei;
+    const kousyu = document.getElementById('info4').value;
+    document.getElementById('kousyu').value = kousyu;
+
+    //元請担当者（ない場合あり）
+    const tanM = document.getElementById('info20').value;
+    document.getElementById('tanM').value = tanM;
+
+    //元請担当者のメールがない場合
+    const mailM = document.getElementById('info21').value;
+    document.getElementById('mailM').value = mailM;
+
+    // 工事・役務の指定がない場合
+    // info22 の値（文字列）を読む
+    const src = document.getElementById('info22').value;   // "", "1", "2" など
+    const ke  = document.getElementById('ke');
+
+    // まず値で選択（インデックスより安全）
+    if (src === "") {
+      ke.value = "選択";   // 先頭の<option value="選択">
+    } else if (src === "1") {
+      ke.value = "1";      // 工事
+    } else if (src === "2") {
+      ke.value = "2";      // 役務
+      document.getElementById('splitSheetBt').hidden = false;
+    }
+
+    // onchange を手動発火（必要なら）
+    ke.dispatchEvent(new Event('change', { bubbles: true }));
+
+
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('infoA').hidden = true;
+    document.getElementById('seikyuPane').hidden = false;
+    document.querySelector('.overlay6').style.display = "block";
+
+  }
+  //😃😃工事・役務の切り替えで内訳書表示ボタンを表示非表示する
+  function keSct(){
+    const ke = document.getElementById('ke').value;
+    if(ke == "2"){
+      document.getElementById('splitSheetBt').hidden = false;
+    }else{
+      document.getElementById('splitSheetBt').hidden = true;
+    }
+  }
+  //😃😃請求書発行(大成＆自社対応)
+  function seikyu(){
+    //(genmei,kousyu,tukiS,ukeoiS,dekiS,madeS,seiS,zanS,fId,ds,tanM,mailM,ke,start,finish,seibi,add,num,end,zouGen,henSt,henFn,keiyaku,firstEnd,moto,manBuild)
+    const motoE = document.getElementById('info17');
+    const moto = motoE.value;
+    const msg = window.confirm(moto + "宛\n請求書発行します");
+    if(msg == true){
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+
+      const motoSct = document.getElementById('motoSct').value;//請求書の種類（大成、自社など）
+      const genmeiE = document.getElementById('genmei');
+      const genmei = genmeiE.value;
+      const kousyuE = document.getElementById('kousyu');
+      const kousyu = kousyuE.value;
+      const tukiSE = document.getElementById('tukiS');
+      const tukiS = tukiSE.value;
+      const kindsSE  = document.getElementById('kindsS');
+      const kindsS = kindsSE.value;
+      const ukeoiSAE = document.getElementById('ukeoiSA');
+      const ukeoiSA = ukeoiSAE.value;
+      const dekiSAE = document.getElementById('dekiSA');
+      const dekiSA = dekiSAE.value;
+      const madeSAE = document.getElementById('madeSA');
+      const madeSA = madeSAE.value;
+      const seiSAE = document.getElementById('seiSA');
+      const seiSA = seiSAE.value;
+      const zanSAE = document.getElementById('zanSA');
+      const zanSA = zanSAE.value;
+      const fIdE = document.getElementById('fId');
+      const fId = fIdE.value;
+      const dsE = document.getElementById('info2');
+      const ds = dsE.value;
+      const tanME = document.getElementById('tanM');
+      const tanM = tanME.value;
+      const mailME = document.getElementById('mailM');
+      const mailM = mailME.value;
+      const keE = document.getElementById('ke');
+      const ke = keE.value;
+      const startE = document.getElementById('startA');
+      const start = startE.value;
+      const finishE = document.getElementById('finishA');
+      const finish = finishE.value;
+      const seibiE = document.getElementById('seibi');
+      const seibi = seibiE.value;
+      const addE = document.getElementById('info15');
+      const add = addE.value;
+      const zouGenE = document.getElementById('zouGen');
+      const zouGenA = zouGenE.value;
+      const zouGen = (zouGenA == "")? 0: zouGenA;
+      const motoStE = document.getElementById('motoSt');
+      const motoSt = motoStE.value;
+      const motoFnE = document.getElementById('motoFn');
+      const motoFn = motoFnE.value;
+      const henStE = document.getElementById('henSt');
+      const henSt = henStE.value;
+      const henFnE = document.getElementById('henFn');
+      const henFn = henFnE.value;
+      const keiyakuE = document.getElementById('info24');
+      const keiyaku = keiyakuE.value;
+      
+      const payE = document.getElementById('pay');
+      const pay = payE.value;
+      const manBuildE = document.getElementById('manBuild');
+      const manBuild = manBuildE.value;
+      const idE = document.getElementById('info0');
+      const id = idE.value;
+      const cellInpt1E = document.getElementById('cellInpt1');
+      const cellInpt1 = cellInpt1E.value;
+      const cellInpt2E = document.getElementById('cellInpt2');
+      const cellInpt2 = cellInpt2E.value;
+      const tuikaE = document.getElementById('tuika');
+      const tuikaA = tuikaE.value;
+      const tuika = (tuikaA == "")? "なし": tuikaA;
+      const tuikinE = document.getElementById('tuikin');
+      const tuikin = tuikinE.value;
+
+      //工事の場合と役務の場合　役務⇒内訳の作成が必要　工事⇒何回目の請求？　今回請求は最終？　精算増減と工期変更の有無
+      //何回目の請求か調べる
+      const payTableE = document.getElementById('payTable');
+      const setRow = Number(document.getElementById('setRow').value);
+      const tukiCol = Number(tukiS) + 5;//tableの月列
+      const numF = () => {
+        //選択月に記録がある場合を含めない
+        let count = 0;
+        for(let i = 6; i < 18; i++) {
+          const cellValue = payTableE.rows[setRow].cells[i].textContent;
+          if(cellValue !== "0" && cellValue !== "") {
+            if(i !== tukiCol){
+              count++;
+            }
+          }
+        }
+        return count;
+      }
+      const num = numF() + 1;//今回分が足されるので+1
+
+      //最終請求かどうか
+      const endF = () => {
+        if(kindsS == "請求済"){
+          return true;
+        }else if(kindsS == "出来高"){
+          return false;
+        }
+      }
+      const end = endF();
+
+      const firstEndF = () => {
+        if(kindsS == "請求済"){
+          if(num == 1){
+            return "1回のみ";
+          }else{
+            return "1回ではない";
+          }
+        }else{
+          return "1回ではない";
+        } 
+      }
+      const firstEnd = firstEndF();
+      if(motoSct == "大成"){
+        if(seibi == ""){
+          alert("請求日を入力ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(manBuild == "選択"){
+          alert("発行先を選択ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(tanM == ""){
+          alert("大成有楽不動産の担当者を入力ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(mailM == ""){
+          alert("大成有楽不動産の担当者メールアドレスを入力ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(ke == "選択"){
+          alert("工事/役務を選択ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else{
+          google.script.run.taiseiSei(genmei,kousyu,tukiS,ukeoiSA,dekiSA,madeSA,seiSA,zanSA,fId,ds,tanM,mailM,ke,start,finish,seibi,add,num,end,zouGen,henSt,henFn,keiyaku,firstEnd,moto,manBuild,motoSt,motoFn,motoSct);
+          alert("処理開始しました\n準備が出来たらチャットします");
+          backPay()
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoA').hidden = true;
+        }
+      }else if(motoSct == "自社" || motoSct == "billOne"){
+        if(seibi == ""){
+          alert("請求日を入力ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(pay == "選択"){
+          alert("支払条件を選択ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(cellInpt1 == "選択"){
+          alert("請求項目1を選択ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else if(cellInpt2 == ""){
+          alert("請求書項目2を入力ください")
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+        }else{
+          google.script.run.zisyaSei(cellInpt1,cellInpt2,genmei,kousyu,ukeoiSA,seiSA,tukiS,start,finish,seibi,add,moto,id,pay,tuika,tuikin,motoSct);
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('infoA').hidden = true;
+          backPay();
+          alert("請求書PDFが出来ましたらチャットでお知らせします");
+        }
+      }
+    }
+  }
+  //😃請求書パネルを閉じる
+  function bkSeikyu(){
+    document.querySelector('.overlay6').style.display = "none";
+    document.getElementById('seikyuPane').hidden = true;
+    document.getElementById('seibi').value = "";
+    document.getElementById('manBuild').selectedIndex = 0;
+    document.getElementById('zouGen').value = "";
+    document.getElementById('motoSt').value = "";
+    document.getElementById('motoFn').value = "";
+    document.getElementById('henSt').value = "";
+    document.getElementById('henFn').value = "";
+    document.getElementById('pay').value = "";
+    document.getElementById('cellInpt1').selectedIndex = 0;
+    document.getElementById('cellInpt2').value = "";
+    document.getElementById('tuika').value = "";
+    document.getElementById('tuikin').value = "";
+  }
+  //◆◆長谷工工事完了報告書対応◆◆
+  function 工事完了報告書(moto){
+    document.querySelector('.overlay4').style.display = "block";
+    document.getElementById('infoA').hidden = false;
+
+    const hatyuNoE = document.getElementById('info23');
+    let hatyuNo = hatyuNoE.value;
+    const genSE = document.getElementById('genS');
+    const genS = genSE.value;
+    const startE = document.getElementById('info13');
+    let start = startE.value;
+    const finishE = document.getElementById('info14');
+    let finish = finishE.value;
+    const keiyakuE = document.getElementById('info24');
+    let keiyaku = keiyakuE.value;
+    const addE = document.getElementById('info15');
+    let add = addE.value;
+    const ukeoiSE = document.getElementById('ukeoiS');
+    let ukeoiS = ukeoiSE.value;
+    const tanME = document.getElementById('info20');
+    let tanM = tanME.value;
+    const mailME = document.getElementById('info21');
+    let mailM = mailME.value;
+    const tukiSE = document.getElementById('tukiS');
+    const tukiS = tukiSE.value;
+    const dsE = document.getElementById('info2');
+    const ds = dsE.value;
+    
+
+    const genmeiF = () => {
+      if(ds == "S" || ds == "S2"){
+        g = genS.slice(0,genS.indexOf(" "));
+        //物件名確認
+        msg = window.confirm('物件名：' + g + " はOKですか");
+        if(msg == false){
+          inpt1 = window.prompt("正しい物件名を入力ください　※" + g);
+          return inpt1;
+        }else{
+          return g;
+        }
+      }else if(ds == "D"){
+        msg = window.confirm('物件名：' + genS + " はOKですか");
+        if(msg == false){
+          inpt1 = window.prompt("正しい物件名を入力ください　※" + genS);
+          return inpt1;
+        }else{
+          return genS;
+        } 
+      }
+    }
+    const genmei = genmeiF();
+
+    //工事内容の確認
+    const kousyuE = document.getElementById('info4');
+    let kousyu = kousyuE.value;
+    const kousyuF = () => {
+      msg = window.confirm('工事内容：' + kousyu + "は正しいですか\n\n工事名は　" + genmei + kousyu + " となります")
+      if(msg == false){
+        inpt1 = window.prompt("正しい工事内容を入力ください　※" + kousyu);
+        return inpt1;
+      }else{
+        return kousyu;
+      }
+    }
+    kousyu = kousyuF();
+
+    const hatyuF = () => {
+      if(hatyuNo == ""){
+        const num = window.prompt('発注NOが登録されてません\n入力お願いします');
+        return num;
+      }else{
+        return hatyuNo;
+      }
+    }
+    hatyuNo = hatyuF();
+
+    const startF = () => {
+      if(start == ""){
+        val = window.prompt('着工日が登録されてません\n入力お願いします');
+        return val;
+      }else{
+        return start;
+      }
+    }
+    start = startF();
+
+    const finishF = () => {
+      if(finish == ""){
+        val = window.prompt('終了日が登録されてません\n入力お願いします');
+        return val;
+      }else{
+        return finish;
+      }
+    }
+    finish = finishF();
+
+    const kanryoF = () => {
+      msg = confirm('完了日は終了日と同じでよろしいですか\n終了日：' + finish);
+      if(msg == false){
+        val = window.prompt('完了日を入力ください');
+        return val
+      }else{
+        return finish;
+      }
+    }
+    kanryo = kanryoF();
+
+    const addF = () => {
+      if(add == ""){
+        val = window.prompt('現場住所が登録されてません\n入力お願いします');
+        return val;
+      }else{
+        return add;
+      }
+    }
+    add = addF();
+
+    const tanMF = () => {
+      if(tanM == ""){
+        val = window.prompt('元請担当者が登録されてません\n入力お願いします');
+        return val;
+      }else{
+        return tanM;
+      }
+    }
+    tanM = tanMF();
+
+    const mailMF = () => {
+      if(mailM == ""){
+        val = window.prompt('元請担当者のメールアドレスが登録されてません\n入力お願いします');
+        return val;
+      }else{
+        return mailM;
+      }
+    }
+    mailM = mailMF();
+
+    google.script.run.hasekoKanHo(hatyuNo,ukeoiS,genmei,kousyu,start,finish,keiyaku,add,tanM,mailM,tukiS,kanryo);
+    alert("処理開始しました\n準備が出来たらチャットで連絡します");
+    backPay()
+  }
+  //☺請求書のセレクト（cellInpt1）のonchange 請求項目１の内容の入力を要求し、入力内容をoption3に反映する
+  function chanItem(){
+    const cellInpt1 = document.getElementById('cellInpt1').value;
+    if(cellInpt1 == "3"){
+      const msg = window.prompt("請求項目１を入力ください");
+      document.getElementById('cellInpt1Sct3').value = msg;
+      document.getElementById('cellInpt1Sct3').innerText = msg;
+    }
+  }
+  //😃😃長谷工billOneの対応請求書
+  function billOneGo(){
+    document.getElementById("motoSct").value = "billOne";
+    請求書発行();
+    document.querySelector('.overlay4').style.display = "none";
+    document.getElementById('billOneBt').hidden = true;
+  }
+  //😃😃長谷工の請求書アップロードパネルの表示ｊｓ
+  // 1. グローバル変数（選択されたファイルを一時保存）
+  let selectedFile = null;
+
+  // 2. ドラッグオーバー時（枠の上にファイルが来た時）
+  function dragOver(e) {
+    e.preventDefault(); // これをしないとファイルが開いてしまう
+    e.currentTarget.classList.add('dragover'); // 背景色を変えるなどの演出
+  }
+
+  // 3. マウスが枠から外れた時（またはドラッグが外れた時）
+  function dragLeave(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover'); // 背景色を元に戻す
+  }
+
+  // 4. ファイルをドロップした時
+  function dropFile(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      fileSelected(files); // ファイル選択処理へ
+    }
+  }
+
+  // 5. ファイルが選択された時のプレビュー表示
+  function fileSelected(files) {
+    if (files.length === 0) return;
+    
+    selectedFile = files[0]; // 1つ目のファイルを取得
+    document.getElementById('statusArea').innerText = "選択中: " + selectedFile.name;
+    document.getElementById('upBtn').disabled = false; // ボタンを活性化
+
+    // 画像の場合はプレビューを表示する
+    const preview = document.getElementById('previewArea');
+    if (selectedFile.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.innerHTML = '<img src="' + e.target.result + '" style="max-width:100%; border:1px solid #ccc;">';
+      };
+      reader.readAsDataURL(selectedFile);
+    } else {
+      preview.innerHTML = '<div style="font-size:30px;">📄</div>' + selectedFile.name;
+    }
+  }
+
+  // 😃😃6. アップロード実行ボタンが押された時
+  function startUpload() {
+    if (!selectedFile) return;
+
+    const btn = document.getElementById('upBtn');
+
+    // ★ PDF制限を追加
+    if (selectedFile.type !== 'application/pdf') {
+      alert("エラー：PDFファイルのみアップロード可能です。\n現在のファイル形式: " + selectedFile.type);
+      return; // ここで処理を中断
+    }
+
+    btn.value = "アップロード中...";
+    btn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64Data = e.target.result.split(',')[1];
+      const contentType = selectedFile.type;
+      const fileName = selectedFile.name;
+      
+      // 各項目の取得
+      const genS = document.getElementById('genS').value;
+      const kinds = document.getElementById('info4').value;
+      const kin = document.getElementById('seiS').value;
+      const tukiS = document.getElementById('tukiS').value;
+
+      // GAS側の関数「uploadHaseSeiFile」を呼び出す
+      google.script.run
+        .withSuccessHandler(function(url) {
+          alert("アップロードが完了しました！");
+          btn.value = "アップロード完了";
+          document.getElementById('statusArea').innerText = "✅ 送信済み";
+        })
+        .withFailureHandler(function(err) {
+          alert("エラー: " + err);
+          btn.disabled = false;
+          btn.value = "アップロード実行";
+        })
+        .uploadHaseSeiFile(base64Data, contentType, fileName, genS, kinds, kin, tukiS);
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+</script>

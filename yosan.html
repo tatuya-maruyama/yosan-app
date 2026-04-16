@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, intial-scale=1">
+    <?!= HtmlService.createHtmlOutputFromFile('style-css').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('yosan-script').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('yosan-script-sei').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('yosan-script-fileup').getContent(); ?>
+    <?!= HtmlService.createHtmlOutputFromFile('yasan-script-genRezi').getContent(); ?>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.1/math.min.js"></script>
+  </head>
+  <body>
+    <!-- ◆◆◆◆◆◆データ◆◆◆◆◆◆ -->
+    <input id="fId" hidden="true"/>
+    <input id="access" hidden="true"/>
+    <input id="syaId" hidden="true"/>
+    <input id="pass" hidden="true"/>
+    <input id="ds" hidden="true"/>
+    <input id="nendo" hidden="true"/>
+    <input id="honSei" hidden="true"/><!--本工事契約indexを記録-->
+    <input id="huri" hidden="true"/>
+    <input id="kengen" hidden ="true"/>
+    <!-- ◆◆◆◆◆◆データ◆◆◆◆◆◆ -->
+    <!-- ◆◆INFOモーダルウインドウ◆◆ -->
+    <div class="wrapper" style="text-align:center">
+      <div id="genInfo">
+        <h2 id="genbamei"></h2>
+        <div id="btPane" style="text-align:center">
+          <input id="paymentBt" type="button" class="button" value="支払請求状況" onclick="getPayment()"/>
+           <input id="syokiboBt" type="button" class="button" value="発注管理" onclick="hatyuKan()"/><br>
+          <input id="genHenBt" type="button" class="button2" value="内容変更" onclick="genHen()" hidden="true"/>
+          <input id="tyumonBt" type="button" class="button2" value="注文請書作成" onclick="tyumonPane()" hidden="true"/>
+          <input id="spOpenBt" type="button" class="button" value="ｽﾌﾟﾚｯﾄｼｰﾄOPEN" onclick="spOpen()"/>
+        </div>
+        <div id="btPane2" hidden="true">
+          <input id="honReziBt" type="button" class="button" value="現場登録実行" onclick="genRezist()"/>
+          <input type="button" class="button2" value="戻る" onclick="backTop()"/>
+        </div>
+        <table id="info" class="table">
+          <tr><th>ID</th><td><input id="info0" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>識別（状態）</th><td><input id="info1" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>識別（D/S）</th><td><input id="info2" class="input" style="text-align:center" readonly="true"/></td><td>D：大規模　S：小規模</td></tr>
+          <tr><th>現場名</th><td><input id="info3" class="input" style="text-align:center" readonly="true" onchange="genNameChan()"/></td><td></td></tr>
+          <tr><th>工事内容</th><td><input id="info4" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>請負金額</th><td><input id="info5" class="input" style="text-align:right" readonly="true"onchange="calCam(this.id)"/></td><td>税抜き</td></tr>
+          <tr><th>注文書</th><td><input id="tyumon" class="input" readonly="true"/></td><td><input type="button" value="リスト表示&登録" onclick="keiyakuListOpen()"/></td></tr>
+          <tr><th>予算</th><td><input id="info6" class="input" style="text-align:right" readonly="true" onchange="calCam(this.id)"/></td><td>税抜き</td></tr>
+          <tr><th>売上</th><td><input id="info7" class="input" style="text-align:right" readonly="true"/></td><td>税抜き</td></tr>
+          <tr><th>支払</th><td><input id="info8" class="input" style="text-align:right" readonly="true"/></td><td>※注意：支払いが完了している月までの反映です</td></tr>
+          <tr><th>設定粗利</th><td><input id="info9" class="input" style="text-align:right" readonly="true"/></td><td></td></tr>
+          <tr><th>実粗利</th><td><input id="info10" class="input" style="text-align:right" readonly="true"/></td><td></td></tr>
+          <tr><th>月粗利</th><td><input id="info11" class="input" style="text-align:right" readonly="true"/></td><td id="tuki">粗利（売上-支払）÷経過期間</td></tr>
+          <tr><th>経過期間</th><td><input id="info12" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>着工</th><td><input id="info13" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>完了</th><td><input id="info14" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>住所</th><td><input id="info15" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>担当</th><td><select id="info16" class="select" disabled="true"/></select></td><td></td></tr>
+          <tr><th>顧客</th><td><select id="info17" class="select" disabled="true"/></td><td></td></tr>
+          <tr><th>請求完了日</th><td><input id="info18" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>メモ</th><td><input id="info19" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>担当者（元請）</th><td><input id="info20" class="input" style="text-align:center" readonly="true" onchange="getMail()"/></td><td></td></tr>
+          <tr><th>Mail（元請）</th><td><input id="info21" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>工事・役務（大成）</th><td><input id="info22" class="input" style="text-align:center" readonly="true"/></td><td>工事：1　役務：2</td></tr>
+          <tr><th>CSV発注書No（長谷工）</th><td><input id="info23" class="input" style="text-align:center" readonly="true"/></td><td><input id="csvBt" type="button" value="契約CSV登録" onclick="csvUpPaneOP(this.id)" disabled="true"/></td><td><input id="csvBt2" type="button" value="CSVﾘｽﾄOPEN" onclick="csvListOP()" disabled="true"/></td></tr>
+          <tr><th>契約日</th><td><input id="info24" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>登録者</th><td><input id="info25" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+          <tr><th>ｽﾍﾟｰｽURL</th><td><input id="info26" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="overlay4">
+      <div class="modal4" style="text-align: center">
+        <div id="infoA" hidden="true">
+          <h3 style="text-align: center; margin-top:60px">◆◇読み込み中◇◆</h3><br><br>
+        </div>
+        <div id="infoB" hidden="true">
+          <h3 style="text-align: center; margin-top:60px">◆◇ログイン認証がありません◇◆</h3>
+        </div>
+        <div id="infoC" hidden="true">
+          <div class="innerBox" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+            <h3 id="copyPe" style="text-align: center; margin-bottom: 10px;"></h3>
+            <input id="copiPeBt" type="button" class="button" value="ｽﾍﾟｰｽ投稿" onclick="copiPe()"/>
+          </div>
+          <div id="haseSeiPane" hidden="true"><!--請求書uploadパネル-->
+            <h3>長谷工の請求書ファイルをアップロードください</h3>
+            <p>＊注文書＆請求書ｽﾍﾟｰｽに投稿します＊</p>
+            <div id="uploadZone" class="upload-zone" 
+                onclick="document.getElementById('fileInput').click()"
+                ondragover="dragOver(event)" 
+                onmouseleave="dragLeave(event)" 
+                ondrop="dropFile(event)">
+              ここにファイルをドロップ または クリックして選択<br>
+              <span style="font-size: 0.8em; color: #666;">（スクリーンショットの貼り付け [Ctrl+V] もOK）</span>
+            </div>
+            <input type="file" id="fileInput" style="display:none" accept=".pdf,application/pdf" onchange="fileSelected(this.files)">
+            <div id="statusArea" style="margin-top: 10px; font-weight: bold; min-height: 20px;"></div>
+            <div id="previewArea" style="margin-top: 10px;"></div>
+            <input type="button" id="upBtn" class="buttonB" value="アップロード実行" onclick="startUpload()" disabled/>
+          </div>
+          <div style="text-align: center; width: 100%; margin-top: 20px;">
+            <input type="button" class="button" value="閉じる" onclick="infoClose()"/>
+          </div>
+        </div>
+        <!--😃😃新しく開発中😃😃-->
+        <div id="billOnePane" hidden="true">
+          <h3>◇長谷工リフォーム◇</h3>
+          <p>登録したCSVリストを開きます</p>
+          <input id="hasekanBt" class="button" type="button" value="工事完了報告書処理" onclick="csvListOP()"/><br>
+          <p>自社請求書の作成と工事完了報告書を作成します</p>
+          <input id="billOneBt" class="button" type="button" value="長谷工BillOne処理" onclick="billOneGo()"/><br>
+          <!-- モーダルcloseボタン追加 -->
+          <input id="billClose" type="button" class="button2" value="閉じる" onclick="infoClose(this.id)"/>
+        </div>
+        <!--😃😃新しく開発中😃😃-->
+        <div id="upLoadPane" hidden="true">
+          <!--データ-->
+          <input id="honTuika" hidden=""/>
+          <input id="which" hidden=""/>
+          <input id="upKeiyaku" hidden=""/><!--契約書ファイルIDを記録する-->
+          <form action="" method="post" enctype="multipart/form-data">
+            <h3 id="upLoadInfo"></h3>
+            <div id="container">
+              <div id="drop">
+                <div id="chart" style="cursor: auto;">
+                  <!-- ファイル選択 -->
+                  <input id="upFile" type="file" value="ファイルを選択" name="geodataFile" onchange="selectFiles(this.files);" accept=".pdf,.jpg,.png,.jpeg,.csv">
+                  <!-- 🔽 画像ペーストエリア -->
+                  <div id="pastePane" hidden="true">
+                      <div id="pasteArea" 
+                        contenteditable="true" 
+                        style="border: 2px dashed #aaa; padding: 1em; margin-top: 1em; min-height: 100px; text-align: center;">
+                      ここに画像をペーストしてください（Ctrl+V）
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <input id="UpPaneModoruBt" type="button" class="button2" value="戻る" onclick="UpPaneBK()"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div id="upInfoPane" hidden="true">
+          <!--データ-->
+          <input id="pdfImage" hidden="true"/>
+          <!--データ-->
+          <h3 id="upInfo"></h3>
+          <div class="arrow-loader">
+            <span>⇒⇒</span><span>⇒⇒</span><span>⇒⇒</span>
+          </div>
+          <!-- <canvas id="pdfCanvas"></canvas> -->
+          <img src="" id="upImage" style="display:none; max-width:40%; margin: 0 auto; display:block;">
+        </div>
+        <div id="csvSctList" hidden="true">
+          <input id="csvClick" hidden="true"/>
+          <input id="reziYobi" hidden="true"/>
+          <h3>アップロードCSVの現場を選択ください</h3>
+          <table id="sctCsvT" class="table"></table><br>
+          <input id="sctCsvBt" type="button" class="button" value="選択" onclick="sctCsv()" />
+          <input id="sctCsvBKBt" type="button" class="button2" value="ｷｬﾝｾﾙ" onclick="sctCsvBK()" />          
+        </div>
+        <div id="csvList" hidden="true">
+          <!--データ-->
+          <input id="csvClick2" hidden="true"/>
+          <h3>登録されたCSVリスト（工事完了報告書発行）</h3>
+          <table id="reziCsvT" class="table"></table><br>
+          <input id="koKanhoBt" type="button" class="button" value="報告書発行" onclick="infoClose(this.id)" />
+          <input id="reziCsvBKBt" type="button" class="button2" value="閉じる" onclick="reziCsvBK()" />          
+        </div>
+        <div id="mailReziPane" hidden='true'>
+          <h3>元請担当者のメールアドレスが未登録</h3>
+          <h3 id="motoMR"></h3>
+          <h3 id="tanMR"></h3>
+          <h3 id="tanName"></h3>
+          <label for="mailRezi">担当者メール入力</label><input id="mailRezi" class="input" />
+          <input id="mailReziBt" type="button" class="button" value="登録" onclick="mailRezist()"/>
+        </div>
+        <div id="tyomonPane" hidden="turue">
+          <h3>＊＊請負契約書（施主＆元請）＊＊</h3>
+          <table id="tyumonT" class="table">
+            <tr><th>発行日</th><td><input id="day" class="inputL" value="　　　　年　　月　　日"/></td><td><input type="button" value="本日" onclick="honzitu()"/></td></tr>
+            <tr><th>物件名</th><td><input id="gen" class="inputL"/></td><td></td></tr>
+            <tr><th>工事内容</th><td><input id="naiyo" class="inputL"/></td><td></td></tr>
+            <tr><th>金額（税抜）</th><td><input id="uke" class="inputL" onchange="calCam(this.id)"/></td><td></td></tr>
+            <tr><th>支払条件</th><td><input id="terms" class="inputL" value="着工時30％ 中間時30％ 完了時40％"/></td><td>工事完了後一括払い</td></tr>
+            <tr><th>着工</th><td><input id="start" class="inputL"/></td><td></td></tr>
+            <tr><th>完了</th><td><input id="finish" class="inputL"/></td><td></td></tr>
+            <tr><th>顧客</th><td><input id="client" class="inputL" readonly="true"/></td><td></td></tr>
+            <tr><th>署名部分</th><td><input id="syomei" class="inputL"/></td><td>例：理事長　</td></tr>
+            <tr><th>新規・変更・追加</th><td><select id="keiyakuSct"class="select">
+                <option value="選択">選択</option>
+                <option value="契約">契約</option>
+                <option value="変更">変更</option>
+                <option value="追加">追加</option>
+              </select></td><td>新規は契約を選択</td></tr>
+          </table>
+          <input type="button" class="button" value="注文請書作成(自社)" onclick="tyumon()"/>
+          <input type="button" class="button2" value="戻る" onclick="tyumonBK()"/>
+        </div>
+        <div id="keiyakuListPane" hidden="true">
+          <h3>◆契約書リスト◆</h3>
+          <table id="keiyakuListT" class="table"></table>
+          <input id="keiUpBt" type="button" class="button" value="登録ｱｯﾌﾟﾛｰﾄﾞ" onclick="keiUpload()" hidden="true"/>
+          <input type="button" class="button2" value="戻る" onclick="keiListBK()"/>
+        </div>
+      </div>
+    </div>
+     <!-- ◆◆モーダルウインドウ◆◆ -->
+    <div class="overlay3">
+      <div class="modal" style="text-align: center">
+        <!--ﾃﾞｰﾀ-->
+        <input id="motoPa" hidden="true"/>
+        <input id="honRow" hidden="true"/><!--本契約書のROW-->
+        <input id="setRow" hidden="tire"/><!--現在選択の契約金額Row-->
+        <input id="seiNum" hidden="true"/><!--契約書の数-->
+        <input id="sct" hidden="true"/><!--契約書のセレクト番号-->
+        <!--ﾃﾞｰﾀ-->
+        <h3>支払状況（支払いが完了している月まで）</h3>
+        <p>前月分請求の反映は20日～23日頃</p>
+        <h3 id='genName'></h3>
+
+        <table id="payTable" class="table3"></table>
+        <input type="button" class="button2" value="戻る" onclick="backPay()" />
+        <input id="climeBt" type="button" class="button" value="請求処理ﾊﾟﾈﾙ" onclick="climePaneOP()" hidden="true"/>
+        <div id="climePane" hidden="true">
+          <h3>※請求処理パネル※</h3>
+          <p>こちらは権限のある者のみ表示されてます</p>
+          <table id="climeT" class="table">
+            <tr><th>現場名</th><td><input id="genS" class="input" style="text-align:center" readonly="true"/></td><td></td></tr>
+            <tr><th>請求月</th><td><select id="tukiS" class="select" onchange="madeCal()">
+              <option value="1">1月</option>
+              <option value="2">2月</option>
+              <option value="3">3月</option>
+              <option value="4">4月</option>
+              <option value="5">5月</option>
+              <option value="6">6月</option>
+              <option value="7">7月</option>
+              <option value="8">8月</option>
+              <option value="9">9月</option>
+              <option value="10">10月</option>
+              <option value="11">11月</option>
+              <option value="12">12月</option>
+              </select></td><td>【注意】今月を選択してます</td></tr>
+            <tr><th>請求種類</th><td><select id="kindsS" class="select">
+              <option value="選択">選択</option>
+              <option value="出来高">出来高（残金あり）</option>
+              <option value="請求済">請求済（完了）</option>
+              </select></td><td>最終の請求は”請求済（完了）”</td></tr>
+            <tr><th>請負金額（込）</th><td><input id="ukeoiS" class="input" style="text-align:right" readonly="true"/></td><td id="keiyaku" style="font-weight:bold"></td><td><input type="button" value="変更" onclick="chageKeiyaku()"/></td></tr>
+            <tr><th>出来高（込）    数式OK</th><td><input id="dekiS" type="tel" class="inputN" style="text-align:right" onchange="dekiCal()"/></td><td><input type="button" value="請負反映" onclick="ukehan()"/></td></tr>
+            <tr><th id="dekiPInfo"></th><td><input id="dekipaS" type="tel" class="input" style="text-align:right"/></td><td><input type="button" value="出来計算" onclick="paCal()"/></td></tr>
+            <tr><th>前月迄請求（込）</th><td><input id="madeS" class="input" style="text-align:right" readonly="true"/></td><td>ｾﾚｸﾄ月金額ﾏｲﾅｽ</td></tr>
+            <tr><th>今月請求（込）</th><td><input id="seiS" class="input" style="text-align:right" readonly="true" onchange="seiSChange()"/></td><td><input type="button" value="請求金額入力" onclick="seiSCancel()"/></td></tr>
+            <tr><th>請負残高（込）</th><td><input id="zanS" class="input" style="text-align:right" readonly="true"/></td><td></td></tr>
+            <tr><th>コメント記録</th><td><input id="memoS" class="input" style="text-align:right"/></td><td></td></tr>
+          </table>
+          <input type="button" id="reziSeiBt" class="button" value="請求登録します" onclick="reziSei()"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- ◆◆モーダル◆クリック防止用◆◆ -->
+    <div class="overlay5">
+      <div class="modal">
+        <div id="newRezistPane">
+          <h3>◆現場登録パネル◆</h3>
+          <table class="table">
+            <tr><th>識別</th><td><select id="dsSct" class="select" onchange="kosyuChan()">
+                <option value="選択">選択</option>
+                <option value="D">大規模登録</option>
+                <option value="S2">小規模登録</option>
+              </select></td></tr>
+            <tr><th>顧客</th><td><select id="clientSct" class="select" onchange="changeClient()"></select></td><td><input type="button" value="登録" onclick="reziClient()"/></td></tr>
+            <tr><th>物件名</th><td><input id="genInpt" class="input"/></td></tr>
+            <tr><th>工種</th><td><input id="kindInpt" class="input"/></td><td>例：大規模修繕工事</td></tr>
+            <tr><th>登録年度</th><td><input id="nendoInpt" type="tel" class="input"/></td><td>例:2025</td></tr>
+          </table>
+          <input id="nonKei" type="button" class="button" value="契約書なし" onclick="genRezi(this.id)"/>
+          <input id="keiPdf" type="button" class="button" value="契約書PDF" onclick="genRezi(this.id)"/>
+          <input id="keiCsv" type="button" class="button" value="契約書CSV" onclick="genRezi(this.id)"/><br>
+          <input type="button" class="button2" value="戻る" onclick="backTop()"/>
+        </div>
+      </div>
+    </div>
+    <div class="overlay6">
+      <div class="modal2">
+        <div id="dekiGenSctPaane" hidden="true">
+          <!--データ-->
+          <input id="tandekiFId" hidden="true"/>
+          <input id="sctDekiGen" hidden="true"/>
+          <h3>◇担当者出来高登録現場を選択してください◇</h3>
+          <table id="dekiGenT" class="table"></table>
+          <div style="text-align:center">
+            <input id="dekiGenOKBt" type="button" class="button" value="出来高登録OPEN" onclick="dekiGenOK()"/>
+            <input id="dekigenBKBt" type="button" class="button2" value="戻る" onclick="dekiGenBK()"/>
+          </div>
+        </div>
+        <div id="clientReziPane" hidden="true">
+          <h3>◆顧客新規登録◆</h3>
+          <table id="clientReziT" class="table">
+            <tr><th>得意先ｺｰﾄﾞ</th><td><input id="inptK1" class="input" readonly="true"/></td><td></td></tr>
+            <tr><th>得意先名</th><td><input id="inptK2" class="input" onchange="clientHuri()"/></td><td></td></tr>
+            <tr><th>フリガナ</th><td><input id="inptK3" class="input" /></td><td>※全角カタカナ</td></tr>
+            <tr><th>種別</th><td><select id="inptK4" class="select">
+                <option value="選択">選択</option>
+                <option value="元請">元請</option>
+                <option value="法人">法人</option>
+                <option value="組合">組合</option>
+                <option value="個人">個人</option>
+              </select></td><td></td></tr>
+            <tr><th>郵便番号</th><td><input id="inptK5" class="input" type="tel"/></td><td></td></tr>
+            <tr><th>住所</th><td><input id="inptK6"  class="input" /></td><td></td></tr>
+            <tr><th>TEL</th><td><input id="inptK7" type="tel" class="input" type="tel"/></td><td></td></tr>
+            <tr><th>FAX</th><td><input id="inptK8" type="tel" class="input" type="tel"/></td><td></td></tr>
+            <tr><th>担当者</th><td><input id="inptK9" class="input" /></td><td></td></tr>
+            <tr><th>担当者（携帯）</th><td><input id="inptK10" class="input" /></td><td></td></tr>
+            <tr><th>担当者（ﾒｰﾙ）</th><td><input id="inptK11" class="input" /></td><td></td></tr>
+            <tr><th>メ モ</th><td><input id="inptK12" class="input" /></td><td></td></tr>
+            <tr><th>登録者</th><td><input id="inptK13" class="input" /></td><td></td></tr>
+          </table>
+          <input type="button" class="button" value="新規登録" onclick="clientRezist()"/>
+          <input type="button" class="button2" value="戻る" onclick="backClient()"/>
+        </div>
+        <div id="seikyuPane" hidden="true">
+          <!--データ-->
+          <input id="motoSct" hidden="true"/>
+          <!--データ-->
+          <h3 id="seikyuInfo"></h3>
+          <table id="seikyuT" class="table">
+            <tbody>
+              <!-- genmei,kousyu,tukiS,ukeoiS,dekiS,madeS,seiS,zanS,fId,ds,tanM,mailM,ke,start,finish,seibi,add,num,end,zouGen,henSt,henFn,keiyaku,firstEnd,moto,manBuild -->
+              <tr><th>物件名</th><td><input id="genmei" class="input"/></td></tr>
+              <tr><th>工事内容</th><td><input id="kousyu" class="input"/></td></tr>
+              <tr><th>着工</th><td><input id="startA" class="input"/></td><td>※請求書記載</td></tr>
+              <tr><th>完了</th><td><input id="finishA" class="input"/></td><td>※請求書記載</td></tr>
+              <tr><th>発行日</th><td><input id="seibi" class="input"/></td><td>※入力</td></tr>
+              <tr id="tr1"><th>請求金額</th><td><input id="seiSA" class="input" onchange="calCam(this.id)"/></td><td></td></tr>
+              <tr><th>請負金額</th><td><input id="ukeoiSA" class="input" onchange="calCam(this.id)"/></td></tr>
+              <tr id="tr2"><th>出来高</th><td><input id="dekiSA" class="input" onchange="calCam(this.id)"/></td></tr>
+              <tr id="tr3"><th>前回迄</th><td><input id="madeSA" class="input" onchange="calCam(this.id)"/></td></tr>
+              <tr id="tr4"><th>請負残高</th><td><input id="zanSA" class="input" onchange="calCam(this.id)"/></td></tr>
+            </tbody>
+            <tbody id="taiseiT" class="table" hidden="true">
+              <tr><th>発行先</th><td><select id="manBuild" class="select">
+                <option value="選択">選択</option>
+                <option value="マンション">東京支店ﾏﾝｼｮﾝ</option>
+                <option value="ビル">東京支店ﾋﾞﾙ</option>
+                <option value="千葉">千葉支店</option>
+                </select></td></tr>
+              <tr><th>担当者</th><td><input id="tanM" class="input"/></td></tr>
+              <tr><th>元請ﾒｰﾙ</th><td><input id="mailM" class="input"/></td></tr>
+              <tr><th>工事/役務</th><td><select id="ke" class="select" onchange="keSct()">
+                <option value="選択">選択</option>
+                <option value="1">工事</option>
+                <option value="2">役務</option>
+                </select></td></tr>
+              <tr><th>精算増減</th><td><input id="zouGen" class="input" onchange="calCam(this.id)"/></td><td></td></tr>
+              <tr><th>元着工</th><td><input id="motoSt" class="input"/></td><td>※工期変更の場合</td></tr>
+              <tr><th>元完了</th><td><input id="motoFn" class="input"/></td><td>※工期変更の場合</td></tr>
+              <tr><th>変更着工</th><td><input id="henSt" class="input"/></td><td>※工期変更の場合</td></tr>
+              <tr><th>変更完了</th><td><input id="henFn" class="input"/></td><td>※工期変更の場合</td></tr>
+            </tbody>
+            <tbody id="zisyaT" class="table" hidden="true">
+              <tr><th>支払条件</th><td><select id="pay" class="select">
+                <option value="選択">選択</option>
+                <option value="1">契約書の通り</option>
+                <option value="2">工事完了後一括払い</option>
+                <option value="3">従来通り</option>
+                </select></td></tr>
+              <tr><th>請求項目1</th><td><select id="cellInpt1" class="select" onchange="chanItem()">
+                <option value="選択">選択</option>
+                <option value="1">工事一式</option>
+                <option value="2">請負金額※※円</option>
+                <option id="cellInpt1Sct3" value="3">入力する</option>
+                </select></td></tr>
+              <tr><th>請求書項目2</th><td><input id="cellInpt2" class="input"/></td><td>例：着工時　30％</td></tr>
+              <tr><th>項目追加</th><td><input id="tuika" class="input"/></td><td>例：追加工事</td></tr>
+              <tr><th>項目追加金額</th><td><input id="tuikin" class="input" onchange="calCam(this.id)"/></td><td>税抜き※請求金額からマイナスします</td></tr>
+            </tbody>
+            <tbody id="haseko" class="table" hidden="true">
+              <tr><th>発注No</th><td><input id="No" class="input"/></td><td></td></tr>
+              <tr><th>契約日</th><td><input id="keiyakubi" class="input"/></td><td></td></tr>
+              <tr><th>住所</th><td><input id="address" class="input"/></td><td></td></tr>
+              <tr><th>担当</th><td><input id="tanH" class="input"/></td><td></td></tr>
+              <tr><th>ﾒｰﾙｱﾄﾞﾚｽ</th><td><input id="mailH" class="input"/></td><td></td></tr>
+              <tr><th>TEL</th><td><input id="telH" class="input"/></td><td></td></tr>
+              <tr><th>発行月</th><td><select id="tukiH" class="select">
+                <option value="1">1月</option>
+                <option value="2">2月</option>
+                <option value="3">3月</option>
+                <option value="4">4月</option>
+                <option value="5">5月</option>
+                <option value="6">6月</option>
+                <option value="7">7月</option>
+                <option value="8">8月</option>
+                <option value="9">9月</option>
+                <option value="10">10月</option>
+                <option value="11">11月</option>
+                <option value="12">12月</option>
+                </select></td><td>保存ﾌｫﾙﾀﾞ指定</td></tr>
+            </tbody>  
+          </table>
+          <input id="splitSheetBt" type="button" class="button" value="役務内訳SS開く" onclick="splitSheetOP()" hidden="true"/>
+          <input id="seiHakoBt" type="button" class="button" value="請求書発行" onclick="seikyu()"/>
+          <input id="haseHokokuBt" type="button" class="button" value="完了報告書発行" onclick="koKanHoHakko()" hidden="true"/>
+          <input type="button" class="button2" value="戻る" onclick="bkSeikyu()"/>
+        </div>
+      </div>
+    </div>
+    <script>
+      //◆◆CSVﾘｽﾄ選択用
+      const sctCsvT = document.getElementById('sctCsvT');
+      sctCsvT.addEventListener("click", function(e){
+        //alert(e.target.tagName.toLowerCase());
+        if(e.target.tagName.toLowerCase() === "td"){
+          //alert(gTable.rows.length);
+          for(let i = 0; i < sctCsvT.rows.length; i++){
+            let rows = document.getElementById('sctCsvT').rows.item(i);
+            rows.style.backgroundColor = "#EEEEEE";
+            rows.style.color = "black";
+            for(let j = 0; j < sctCsvT.rows[i].cells.length; j++){
+              sctCsvT.rows[i].cells[j].id = i;
+            }
+          };
+          e.target.parentNode.style.backgroundColor = "#888888";
+          e.target.parentNode.style.color = "#EEEEEE";
+          let dataD = document.getElementById('csvClick');
+          rowcel = e.target.id;
+          dataD.value = rowcel;
+          //alert(rowcel);
+        }
+      },false);
+
+      const reziCsvT = document.getElementById('reziCsvT');
+      reziCsvT.addEventListener("click", function(e){
+        //alert(e.target.tagName.toLowerCase());
+        if(e.target.tagName.toLowerCase() === "td"){
+          //alert(gTable.rows.length);
+          for(let i = 0; i < reziCsvT.rows.length; i++){
+            let rows = document.getElementById('reziCsvT').rows.item(i);
+            rows.style.backgroundColor = "#EEEEEE";
+            rows.style.color = "black";
+            for(let j = 0; j < reziCsvT.rows[i].cells.length; j++){
+              reziCsvT.rows[i].cells[j].id = i;
+            }
+          };
+          e.target.parentNode.style.backgroundColor = "#888888";
+          e.target.parentNode.style.color = "#EEEEEE";
+          let dataD = document.getElementById('csvClick2');
+          rowcel = e.target.id;
+          dataD.value = rowcel;
+          //alert(rowcel);
+        }
+      },false);
+    </script>
+  </body>
+</html>

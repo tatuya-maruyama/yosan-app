@@ -1,0 +1,380 @@
+<script>
+  //◆◆現場登録◆◆
+  async function genRezi(id){
+    const clientSctE = document.getElementById('clientSct');
+    const clientSct = clientSctE.value;//顧客
+    const nendoInpt = document.getElementById('nendoInpt').value;//年度
+    const kindInpt = document.getElementById('kindInpt').value;//工種
+    const dsSct = document.getElementById('dsSct').value//DS
+    const genInpt = document.getElementById('genInpt').value;//物件名
+    document.getElementById('genbamei').innerText = "◇◇現場登録パネル◇◇";
+    if(id == "nonKei"){//🔹🔸契約書アップロードなし
+      if(dsSct == "選択"){
+        alert("識別が選択されてません");
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+      }else if(clientSct == "選択"){
+        alert("顧客が選択されてません");
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+      }else if(genInpt == ""){
+        alert("物件名が入力されてません");
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+      }else if(kindInpt == ""){
+        alert("工種が入力されてません");
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+      }else{
+        document.getElementById('infoA').hidden = false;
+        document.querySelector('.overlay4').style.display = "block";
+        
+        document.getElementById('info2').value = dsSct;
+        document.getElementById('info3').value = genInpt;
+        document.getElementById('info4').value = kindInpt;
+        const sctIndex = clientSctE.selectedIndex;//選択がはいってるので
+        document.getElementById('info17').selectedIndex = sctIndex;
+        //現場情報を現場登録用に変更する
+        changeGenRezi();//yosan-script-fileupにある
+        
+        //住所を調べる
+        // ✅ awaitを使って非同期処理を実行し、prompt に反映する
+        const addF = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .geocoder(genInpt);
+        });
+        const add = window.prompt("物件住所はあってますか\n間違ってる場合は修正ください", addF);
+        document.getElementById('info15').value = add;
+
+        const huriF = await new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .huriganaApi(genInpt);
+        });
+        const huri = window.prompt("フリガナはあってますか\n間違ってる場合は修正ください", huriF);
+        document.getElementById('huri').value = huri;
+        document.getElementById('btPane').hidden = true;
+        document.getElementById('btPane2').hidden = false;
+        document.querySelector('.overlay4').style.display = "none";
+        document.getElementById('infoA').hidden = true;
+
+        document.querySelector('.overlay5').style.display = "none";
+      }
+    }else if(id == "keiPdf"){//🔹🔸PDF契約書で登録
+      //DSの選択と顧客の選択の確認
+      const ds = document.getElementById('dsSct').value;
+      const client = document.getElementById('clientSct').value;
+      if(ds == "選択"){
+        alert("識別を選択ください");
+      }else if(client == "選択"){
+        alert("顧客を選択ください");
+      }else{
+        //ファイルアップロードで内容読み込み
+        const e = "reziPdf";
+        csvUpPaneOP(e);
+      }
+    }else if(id == "keiCsv"){//🔹🔸CSVで登録
+      const ds = document.getElementById('dsSct').value;
+      const client = document.getElementById('clientSct').value;
+      if(ds == "選択"){
+        alert("識別を選択ください");
+      }else{
+        //ファイルアップロードで内容読み込み
+        const e = "csvRezi";
+        csvUpPaneOP(e);
+      }
+    }
+  }
+  //😃😃工事台帳トップパネルに戻る
+  async function backTop(){
+    //https://script.google.com/a/macros/ebisu-ishii.co.jp/s/AKfycbz3Sgm0A3gRIl---r1qSYAkE65ZNo0wbGP08YLw4wc_8NTEyKD3ydq5hIspxiZ-U8qHmQ/exec?param1=%E4%B8%B8%E5%B1%B1%E9%81%94%E4%B9%9F&param2=gibson&param3=41682
+    document.getElementById('infoA').hidden = false;
+    document.querySelector('.overlay4').style.display = "block";
+    const syain = document.getElementById('info25').value;
+    const access = document.getElementById('access').value;
+    const pass = document.getElementById('pass').value;
+    const urlA = await new Promise((res) => {
+      google.script.run.withSuccessHandler(res).getSetUrl();
+    })
+    const url = urlA + "?param1=" + syain + "&param2=" + access + "&param3=" + pass;
+    window.top.location.href = url;
+  }
+  //😃😃元請け担当者のメールアドレス取得
+  function getMail(){
+    const motoTanTE = document.getElementById('info20');
+    const name = motoTanTE.value;
+    if(name.indexOf('　') == -1){
+      alert(name + ' ⇐苗字と名前の間に全角のスペースを入れてください');
+    }else{
+      const motoMailE = document.getElementById('info21');
+      motoMailE.value = "※読み込み中※";
+      motoMailE.disabled = true;
+      const taiHaseF = () => {
+        const moto = document.getElementById('info17').value;
+        if(moto.indexOf("大成有楽不動産") !== -1){
+          return "大成";
+        }else if(moto == "株式会社長谷工リフォーム"){
+          return "長谷工";
+        }
+      }
+      const taiHase = taiHaseF();
+      //alert(taiHase + "," + name);
+      google.script.run.withSuccessHandler(function(dt){
+        if(dt == "なし"){
+          const mail = window.prompt(name + '　さんのメールアドレスの登録がありませんでした\nメールアドレスを入力ください')
+          tanMail(name,mail,taiHase);//担当者メール登録  
+          motoMailE.disabled = false;
+          motoMailE.value = mail;
+        }else{
+          motoMailE.disabled = false;
+          motoMailE.value = dt;
+        }
+      }).getMotoMail(taiHase,name);
+    }
+  }
+  //◆◆元請のメール登録がないので登録
+  function tanMail(name,mail,taiHase){
+    google.script.run.reziMotoMail(name,mail,taiHase);
+  };
+
+  //😃😃DS選択のonChange() 工種に内容を入れる
+  function kosyuChan(){
+    const kindInptE = document.getElementById('kindInpt');
+    const kindInpt = kindInptE.value;
+    const dsSct = document.getElementById('dsSct').value;
+    if(kindInpt == ""){
+      kindInptE.value = (dsSct == "D")? "大規模修繕工事":"";
+    }
+  }
+  // 😃😃現場本登録開始😃😃
+function genRezist() {
+  document.getElementById('infoA').hidden = false;
+  document.querySelector('.overlay4').style.display = "block";
+  
+  // 情報を全て取る関数
+  const reziF = () => {
+    let rn = [];
+    for (let i = 0; i <= 28; i++) {
+      if (i == 27) {
+        const val = document.getElementById('nendoInpt').value;
+        const val2 = document.getElementById('huri').value;
+        rn.push(val);  // 追加
+        rn.push(val2); // 追加
+      } else if (i == 28) {
+        return rn;
+      } else {
+        const id = "info" + i;
+        const val = document.getElementById(id).value;
+        rn.push(val);
+      }
+    }
+    return rn; // 念のため補強
+  }
+
+  const rezi = reziF();
+  //alert("rezi[16]" + rezi[16]);
+  // バリデーション
+  if (rezi[5] == "") {
+    alert("請負金額を入力してください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[4] == "") {
+    alert("工事内容を入力ください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[13] == "") {
+    alert("着工日を入力してください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[14] == "") {
+    alert("完了日を入力してください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[15] == "") {
+    alert("住所を入力してください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[16] == "選択") {
+    alert("担当者を選択してください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[17] == "選択") {
+    alert("元請けを選択してください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else if (rezi[17].indexOf("大成有楽") !== -1 && rezi[22] == "") {
+    alert("工事・役務を選択ください");
+    document.getElementById('infoA').hidden = true;
+    document.querySelector('.overlay4').style.display = "none";
+  } else {
+    const tyaku = (() => {
+      // 着工日が過ぎてる場合は「着工」にする
+      const str = rezi[13];
+
+      const m = str.match(
+        /(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})日?/
+      );//2025年10月12日,2025/10/12,2025-01-05,2025-1-5（ゼロ埋め無しもOK）
+
+      if (!m) return ""; // 日付が取れない場合は空
+
+      const nenTuki = new Date(
+        Number(m[1]),
+        Number(m[2]) - 1,
+        Number(m[3])
+      ).setHours(0, 0, 0, 0);
+
+      const today = new Date().setHours(0, 0, 0, 0);
+
+      return today > nenTuki ? "着工" : "";
+    })();
+
+    const msg = window.confirm("現場登録を開始します\nよろしいでしょうか");
+    const fIdE = document.getElementById('upKeiyaku');//契約書ファイルID
+    const fId = fIdE.value;
+    //alert('fId ' + fId);
+    if (msg == true) {
+      document.getElementById('honReziBt').disabled = true;//ボタンの無効化
+      const data = {
+        rezi: rezi,
+        fId: fId,//契約書ファイルId
+        tyaku:tyaku
+      };
+      const json = JSON.stringify(data);
+      google.script.run
+        .withFailureHandler(function (er) {
+          alert("◆◇ERROR \n登録に失敗\n" + er.message);
+        })
+        .withSuccessHandler(function () {
+          alert("登録しました");
+          document.getElementById('infoA').hidden = true;
+          document.querySelector('.overlay4').style.display = "none";
+          document.getElementById('honReziBt').hiiden = true;
+        })
+        .newGenRezi(json);
+    }
+  }
+}
+//😃😃顧客登録パネルを開く
+function reziClient(){
+  for(let i=1; i<=13; i++){
+    if(i == 4){
+      document.getElementById('inptK4').selectedIndex = 0;
+    }else{
+      const id = "inptK" + i;
+      document.getElementById(id).value = "";
+    }
+  }
+  document.getElementById('inptK1').value = "※取得します※";
+  document.querySelector('.overlay5').style.display = "none";
+  document.getElementById('clientReziPane').hidden = false;
+  document.querySelector('.overlay6').style.display = "block";
+}
+//😃😃顧客登録パネルから戻る
+function backClient(){
+  document.querySelector('.overlay6').style.display = "none";
+  document.getElementById('clientReziPane').hidden = true;
+  document.querySelector('.overlay5').style.display = "block";
+  //顧客登録パネルのリセット
+  for(let i=0; i<=13; i++){
+    const id = "inptK" + 1
+    if(i == 4){
+      document.getElementById(id).selectedIndex = 0;
+    }else{
+      document.getElementById(id).value = "";
+    }
+  }
+}
+//😃顧客のフリガナ取得
+function clientHuri(){
+  const nameE = document.getElementById('inptK2');
+  const name = nameE.value;
+  const huriE = document.getElementById('inptK3');
+  huriE.value = "◇読み込み中◇";
+  huriE.disabled = true;
+  google.script.run.withSuccessHandler(function(dt){
+    huriE.value = dt;
+    huriE.disabled = false;
+  }).huriganaApi(name);
+}
+//😃😃顧客の登録GAS実行
+function clientRezist() {
+  let rn = [];
+  for (let i = 1; i <= 13; i++) {
+    const id = "inptK" + i;
+    const val = document.getElementById(id).value;
+    rn.push(val);
+  }
+  if(rn[1] == ""){
+    alert("顧客名を入力ください");
+  }else if(rn[3] == "選択"){
+    alert("種別を選択ください");
+  }else if(rn[4] == ""){
+    alert("郵便番号を入力ください");
+  }else if(rn[5] == ""){
+    alert("住所を入力ください");
+  }else{
+    const msg = window.confirm("顧客を登録します\nよろしいでしょうか");
+    const client = document.getElementById('inptK2').value;
+    if (msg === true) {
+      document.getElementById('infoA').hidden = false;
+      document.querySelector('.overlay4').style.display = "block";
+      google.script.run.withSuccessHandler(function(dt) {
+        //alert(dt);
+        const clientListE = document.getElementById('info17');
+        clientListE.innerHTML = "";
+        for (let c = 0; c < dt.length; c++) {
+          const option = document.createElement('option');
+          option.value = dt[c];
+          option.text = dt[c];
+          clientListE.appendChild(option);
+        }
+        const clientSctE = document.getElementById('clientSct');
+        clientSctE.innerHTML = "";
+        let index = 0;
+        for (let t = 0; t < dt.length; t++) {
+          const option = document.createElement('option');
+          option.value = dt[t];
+          option.text = dt[t];
+          clientSctE.appendChild(option);
+          if(dt[t] == rn[1]){
+            clientSctE.selectedIndex = t;
+          }
+        }
+        alert("顧客を登録しました\n" + client);
+        document.getElementById('infoA').hidden = true;
+        document.querySelector('.overlay4').style.display = "none";
+        //顧客登録パネルのリセット
+        backClient()     
+      }).rezistClientGetList(rn);
+    }
+  }
+}
+//😃現場名を変更した場合の振り仮名変更
+function genNameChan() {
+  const gen = document.getElementById('info3').value;
+
+  // フリガナ取得APIを呼び出す（非同期）
+  google.script.run
+    .withSuccessHandler(function(hurigana) {
+      const confirmed = window.prompt("フリガナはあってますか\n間違ってる場合は修正ください", hurigana);
+      if (confirmed !== null) {
+        document.getElementById('huri').value = confirmed;
+      }
+    })
+    .withFailureHandler(function(error) {
+      alert("フリガナ取得に失敗しました\n" + error.message);
+    })
+    .huriganaApi(gen); // genの値をAPIに渡す
+}
+//😃顧客選択のonChange()
+function changeClient(){
+  const clientSct = document.getElementById('clientSct').value;
+  if(clientSct == "株式会社長谷工リフォーム"){
+    alert("長谷工リフォームの工事登録はCSVファイルをアップロードできます");
+  };
+}
+
+</script>

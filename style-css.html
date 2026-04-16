@@ -1,0 +1,339 @@
+<style type="text/css">
+ @import url(https://fonts.googleapis.com/css?family=Open+Sans:400); 
+body{
+  background: #CCCCCC;
+  color: #5e5e5e;
+  font: 400 87.5%/1.5em sans-serif;
+}
+.innerBox {
+  width: 700px;
+}
+.wrapper{
+  display:block;
+  background: #fafafa;
+  margin-top: 3em;
+  margin-bottom:3em;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 10% 5%;
+  width: 80%
+}
+
+.input{
+  background-Color: #fafafa;
+  width: 250px;
+  height: 1.5em; 
+  border: none;
+  font-size:16px;
+  text-align:center;
+  margin: 2px;
+}
+.inputIn {
+  background-color: #fafafa;
+  border: 1px solid #4169e1;
+  width: 250px;
+  height: 1.5em;
+  font-size: 16px;
+  text-align: center;
+  margin: 2px;
+}
+
+.inputN{
+  background:ffffff;
+  border:1px solid #444;
+  font-weight: bold;
+  margin: 2px;
+  width: 250px;
+  height: 3em;
+  text-align: center; 
+  font-size: 18px; 
+  }
+.inputL{
+  background-Color: #fafafa;
+  width: 350px;
+  height: 1.5em; 
+  border: none;
+  font-size:16px;
+  text-align:center;
+  margin: 2px;
+}
+.table{
+  width: 700px;
+  border-spacing: 0;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+.table, th, td {
+  border: 1px solid #444;
+}
+.table th{
+  background: #DDDDDD;
+  padding: 2px 0.5em;
+  border: 1px solid #444;
+  font-size: 16px;
+}     
+.table td{
+  text-align: center;
+  padding: 2px 0.5em;
+  border: 1px solid #444;
+  font-size: 16px;
+}
+.table3{
+  border-spacing: 0;
+  border-collapse: collapse;
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.table3, th, td {
+  border: 1px solid #444;
+}
+.table3 th{
+  background: #EEEEEE;
+  padding: 2px;
+  font-size: 11px;
+  border: 1.5px solid #444;
+}
+.table3 td{
+  text-align: right;
+  padding: 1.5px;
+  font-size: 10px;
+}
+.select{
+  width: 250px;
+  height:30px;
+  text-align:center;
+  font-size:16px;
+  margin: 3px;
+}
+.selectS{
+  width: 50px;
+  height:30px;
+  text-align:center;
+  font-size:16px;
+  margin: 3px;
+}
+h2{
+  text-align: center;
+  letter-spacing: 0.1em;
+  color: black;
+}
+h3{
+  text-align: center;
+  letter-spacing: 0.1em;
+  color: black;
+}
+.button{
+  background: #339966;
+  margin: 1em;
+  padding: 0.5em;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  hight: 50px;
+  font-size:100%;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  width: 150px;  
+}
+.button:hover{
+  background: #33CC00;
+}
+.buttonR{
+  background: #708090;
+  margin: 1em;
+  padding: 0.5em;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  hight: 50px;
+  font-size:100%;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  width: 150px;  
+}
+.buttonR:hover{
+  background: #DCDCDC;
+}
+.button2{
+  background: #ADE8E6;
+  margin: 1em;
+  padding: 0.5em;
+  border: none;
+  color: black;
+  cursor: pointer;
+  hight: 50px;
+  font-size:100%;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  width: 150px;  
+}
+.buttonB{
+  background: #4169e1;
+  margin: 1em;
+  padding: 0.5em;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  hight: 50px;
+  font-size:100%;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  width: 150px;
+}
+.buttonB:hover{
+  background: #191970;
+}
+.inpt2{
+  /* background: #708090; */
+  margin: 1em;
+  padding: 0.5em;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  hight: 20px;
+  font-size:100%;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  width: 50px;  
+}
+.overlay5{
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100%;
+  background-Color: rgba(0,0,0,.7);
+  transition: .3s;
+  z-index:40;
+}
+.overlay4{
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100%;
+  background-Color: rgba(0,0,0,.7);
+  transition: .3s;
+  z-index:60;
+}
+.overlay6{
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100%;
+  background-Color: rgba(0,0,0,.7);
+  transition: .3s;
+  z-index:50;
+}
+.overlay3{
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100%;
+  background-Color: rgba(0,0,0,.7);
+  transition: .3s;
+  z-index:30;
+}
+.modal3{
+  text-align: center;
+  position: absolute;
+  top: 0%;
+  height:750px;
+  background-Color: #fafafa;
+  width: 100%;
+  margin: 0;
+  overflow-y: auto;
+  /* animation-name: popup;
+  animation-duration: 1.1s; */
+}
+.modal{
+  text-align: center;
+  position: absolute;
+  top: 0%;
+  height:100%;
+  background-Color: #fafafa;
+  width: 100%;
+  margin: 0;
+  overflow-y: auto;
+  /* animation-name: popup;
+  animation-duration: 1.1s; */
+}
+.modal2{
+  text-align: center;
+  position: absolute;
+  top: 0%;
+  height:100%;
+  background-Color: #EEEEEE;
+  width: 100%;
+  margin: 0;
+  overflow-y: auto;
+  animation-name: popup;
+  animation-duration: 1.1s;
+}
+.modal4{
+  text-align: center;
+  position: absolute;
+  top: 10%;
+  background-Color: #EEEEEE;
+  width: 100%;
+  margin: 0;
+  
+  overflow-y: auto;
+  animation-name: popup;
+  animation-duration: 1.1s;
+}
+@keyframes popup{
+  from{
+    transform:translateY(150%);
+    
+    opacity: 0;
+  }to{
+  opacity: 1;
+  }
+}
+.arrow-loader {
+  display: inline-flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.arrow-loader span {
+  animation: slideArrow 1s infinite;
+  font-size: 24px;
+  opacity: 0.3;
+}
+.arrow-loader span:nth-child(1) {
+  animation-delay: 0s;
+}
+.arrow-loader span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.arrow-loader span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes slideArrow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateX(0px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(10px);
+  }
+}
+
+</style>
